@@ -2,6 +2,7 @@
 // GOOGLE FONTS
 // ─────────────────────────────────────────────
 const GOOGLE_FONTS = [
+  { name: 'Cascadia Code', family: "'Cascadia Code', monospace", url: 'https://fonts.googleapis.com/css2?family=Cascadia+Code:wght@400;700&display=swap' },
   { name: 'JetBrains Mono', family: "'JetBrains Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap' },
   { name: 'Fira Code', family: "'Fira Code', monospace", url: 'https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap' },
   { name: 'Source Code Pro', family: "'Source Code Pro', monospace", url: 'https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&display=swap' },
@@ -14,10 +15,22 @@ const GOOGLE_FONTS = [
   { name: 'Cousine', family: "'Cousine', monospace", url: 'https://fonts.googleapis.com/css2?family=Cousine:wght@400;700&display=swap' },
   { name: 'Red Hat Mono', family: "'Red Hat Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Red+Hat+Mono:wght@400;700&display=swap' },
   { name: 'Martian Mono', family: "'Martian Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;700&display=swap' },
+  { name: 'Noto Sans Mono', family: "'Noto Sans Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@400;700&display=swap' },
+  { name: 'PT Mono', family: "'PT Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=PT+Mono&display=swap' },
+  { name: 'Overpass Mono', family: "'Overpass Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Overpass+Mono:wght@400;700&display=swap' },
+  { name: 'DM Mono', family: "'DM Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap' },
+  { name: 'B612 Mono', family: "'B612 Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=B612+Mono:wght@400;700&display=swap' },
+  { name: 'Azeret Mono', family: "'Azeret Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@400;700&display=swap' },
+  { name: 'Share Tech Mono', family: "'Share Tech Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap' },
+  { name: 'Victor Mono', family: "'Victor Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Victor+Mono:wght@400;700&display=swap' },
+  { name: 'Syne Mono', family: "'Syne Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Syne+Mono&display=swap' },
+  { name: 'Xanh Mono', family: "'Xanh Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Xanh+Mono&display=swap' },
+  { name: 'Oxygen Mono', family: "'Oxygen Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Oxygen+Mono&display=swap' },
+  { name: 'Major Mono Display', family: "'Major Mono Display', monospace", url: 'https://fonts.googleapis.com/css2?family=Major+Mono+Display&display=swap' },
+
 ];
 const SYSTEM_FONTS = [
   { name: 'System Default', family: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace", url: null },
-  { name: 'Cascadia Code', family: "'Cascadia Code', monospace", url: null },
   { name: 'Consolas', family: "'Consolas', monospace", url: null },
   { name: 'Menlo', family: "'Menlo', monospace", url: null },
   { name: 'Monaco', family: "'Monaco', monospace", url: null },

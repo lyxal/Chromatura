@@ -557,7 +557,7 @@ header {
   right: 0;
   bottom: 0;
   padding: 12px;
-  font-family: var(--font-mono);
+  font-family: var(--editor-font);
   font-size: 0.9rem;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -598,7 +598,7 @@ header {
   width: 100%;
   height: 100%;
   padding: 12px;
-  font-family: var(--font-mono);
+  font-family: var(--editor-font);
   font-size: 0.9rem;
   line-height: 1.6;
   background: transparent;
