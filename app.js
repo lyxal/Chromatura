@@ -563,7 +563,7 @@ function updateIndentGuides() {
     for (let lvl = 1; lvl <= levels; lvl++) {
       const guide = document.createElement('div');
       guide.className = 'indent-guide';
-      const x = editorPadding + (lvl * indentSize) * charWidth;
+      const x = editorPadding + (lvl * indentSize - 0.5) * charWidth;
       const y = editorPadding + vi * lh;
       guide.style.left = x + 'px';
       guide.style.top = y + 'px';
