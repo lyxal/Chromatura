@@ -929,6 +929,7 @@ function buildSidebar() {
 // ─────────────────────────────────────────────
 function getNextShortcut() { const used = new Set(categories.map(c => c.shortcut)); for (const s of [...DEFAULT_SHORTCUTS, ...EXTRA_SHORTCUTS]) if (!used.has(s)) return s; return null; }
 function openNewCategoryModal() { document.getElementById('new-cat-name').value = ''; document.getElementById('new-cat-bold').checked = false; document.getElementById('new-cat-italic').checked = false; updateNewCatPreview(); document.getElementById('new-cat-modal').classList.add('open'); document.getElementById('new-cat-name').focus(); }
+
 function updateNewCatPreview() {
   const preview = document.getElementById('new-cat-preview');
   const name = document.getElementById('new-cat-name').value.trim();
@@ -941,7 +942,7 @@ function updateNewCatPreview() {
   for (const [themeId, theme] of Object.entries(THEMES)) {
     const modal = document.getElementById('new-cat-modal');
     const editId = modal._editCatId;
-    const color = (editId && theme.colors[editId]) ? theme.colors[editId] : generateColorForCategory(themeId, id);
+    const color = (editId && theme.colors[editId]) ? theme.colors[editId] : generateColorForTheme(theme.colors, categories.length);
 
     const chip = document.createElement('div');
     chip.className = 'preview-color';
@@ -949,6 +950,7 @@ function updateNewCatPreview() {
     preview.appendChild(chip);
   }
 }
+
 function addNewCategory() {
   const modal = document.getElementById('new-cat-modal');
   const nameInput = document.getElementById('new-cat-name');
@@ -996,7 +998,7 @@ function addNewCategory() {
 
     // Generate colors for each theme
     for (const [themeId, theme] of Object.entries(THEMES)) {
-      theme.colors[id] = generateColorForCategory(themeId, id);
+      theme.colors[id] = generateColorForTheme(themeId, id);
     }
 
     categories.push(newCat);
