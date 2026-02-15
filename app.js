@@ -998,7 +998,7 @@ function addNewCategory() {
 
     // Generate colors for each theme
     for (const [themeId, theme] of Object.entries(THEMES)) {
-      theme.colors[id] = generateColorForTheme(themeId, id);
+      theme.colors[id] = generateColorForTheme(theme.colors, categories.length)
     }
 
     categories.push(newCat);
