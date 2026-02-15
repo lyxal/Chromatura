@@ -628,7 +628,13 @@ function init() {
   document.getElementById('btn-help-close').addEventListener('click', () => document.getElementById('help-modal').classList.remove('open'));
   document.getElementById('btn-theme-cancel').addEventListener('click', () => document.getElementById('theme-modal').classList.remove('open'));
   document.getElementById('btn-theme-save').addEventListener('click', saveThemeEdits);
-  document.getElementById('btn-new-cat-cancel').addEventListener('click', () => document.getElementById('new-cat-modal').classList.remove('open'));
+  document.getElementById('btn-new-cat-cancel').addEventListener('click', () => {
+    const modal = document.getElementById('new-cat-modal');
+    modal._editCatId = null;
+    modal.querySelector('h2').textContent = 'Add Highlight Category';
+    document.getElementById('btn-new-cat-add').textContent = 'Add Category';
+    modal.classList.remove('open');
+  });
   document.getElementById('btn-new-cat-add').addEventListener('click', addNewCategory);
   document.getElementById('new-cat-name').addEventListener('input', updateNewCatPreview);
   document.getElementById('btn-settings-cancel').addEventListener('click', () => document.getElementById('settings-modal').classList.remove('open'));
@@ -696,6 +702,30 @@ function init() {
 
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+  });
+
+  // File explorer
+  initFileExplorer();
+
+  document.getElementById('btn-toggle-files').addEventListener('click', () => {
+    fileExplorerOpen = false;
+    document.getElementById('file-explorer').classList.remove('open');
+    saveAllToStorage();
+  });
+
+  document.getElementById('file-explorer-tab').addEventListener('click', () => {
+    fileExplorerOpen = true;
+    document.getElementById('file-explorer').classList.add('open');
+    saveAllToStorage();
+  });
+
+  document.getElementById('btn-new-file').addEventListener('click', () => createNewFile());
+
+  // Save files whenever editor changes
+  editorEl.addEventListener('input', () => {
+    // Update the current file's modified time
+    const file = files.find(f => f.id === activeFileId);
+    if (file) file.modifiedAt = new Date().toISOString();
   });
 }
 
@@ -831,20 +861,67 @@ function saveSettings() {
 // SIDEBAR
 // ─────────────────────────────────────────────
 function buildSidebar() {
-  const h3 = sidebar.querySelector('h3'); while (h3.nextSibling) h3.nextSibling.remove();
-  for (const cat of categories) {
-    const btn = document.createElement('button'); btn.className = 'highlight-btn'; btn.dataset.category = cat.id;
-    const sl = cat.shortcut ? `Alt+${cat.shortcut}` : '';
-    btn.innerHTML = `<span class="swatch" style="background:var(--hl-${cat.id})"></span>${cat.label}${sl ? `<span class="shortcut">${sl}</span>` : ''}`;
-    btn.addEventListener('click', () => applyHighlight(cat.id)); sidebar.appendChild(btn);
-  }
+  const sidebar = document.getElementById('sidebar');
+  sidebar.innerHTML = '<h3>Highlight As</h3>';
+
+  categories.forEach((cat, idx) => {
+    const isCustom = !BUILTIN_IDS.has(cat.id);
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'sidebar-btn-wrapper';
+
+    const btn = document.createElement('button');
+    btn.className = 'highlight-btn';
+    const theme = THEMES[currentThemeId];
+    const color = (customColors && customColors[cat.id]) || (theme && theme.colors[cat.id]) || '#888';
+    const styleStr = `background:${color};${cat.bold ? 'border-width:2px;' : ''}`;
+    const shortcutLabel = idx < 9 ? `Alt+${idx + 1}` : '';
+    btn.innerHTML = `<span class="swatch" style="${styleStr}"></span>${cat.label}<span class="shortcut">${shortcutLabel}</span>`;
+    btn.addEventListener('click', () => applyHighlight(cat.id));
+    wrapper.appendChild(btn);
+
+    if (isCustom) {
+      const actions = document.createElement('div');
+      actions.className = 'sidebar-cat-actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'sidebar-cat-action-btn';
+      editBtn.textContent = '✏️';
+      editBtn.title = 'Edit category';
+      editBtn.addEventListener('click', (e) => { e.stopPropagation(); openEditCategoryModal(cat.id); });
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'sidebar-cat-action-btn delete';
+      delBtn.textContent = '✕';
+      delBtn.title = 'Delete category';
+      delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteCategory(cat.id); });
+
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+      wrapper.appendChild(actions);
+    }
+
+    sidebar.appendChild(wrapper);
+  });
+
+  // Divider
+  const div = document.createElement('div');
+  div.className = 'sidebar-divider';
+  sidebar.appendChild(div);
+
+  // Remove button
   const removeBtn = document.createElement('button');
   removeBtn.className = 'highlight-btn remove-btn';
   removeBtn.innerHTML = `<span class="swatch remove-swatch">✕</span>Remove<span class="shortcut">Alt+⌫</span>`;
   removeBtn.addEventListener('click', removeHighlight);
   sidebar.appendChild(removeBtn);
-  const addBtn = document.createElement('button'); addBtn.className = 'highlight-btn add-category-btn'; addBtn.innerHTML = '➕ New Category';
-  addBtn.addEventListener('click', openNewCategoryModal); sidebar.appendChild(addBtn);
+
+  // Add category button
+  const addBtn = document.createElement('button');
+  addBtn.className = 'highlight-btn add-cat-btn';
+  addBtn.innerHTML = `<span class="swatch" style="background:transparent;border:1px dashed var(--line-num);display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--line-num);">+</span>Add Category`;
+  addBtn.addEventListener('click', openNewCategoryModal);
+  sidebar.appendChild(addBtn);
 }
 
 // ─────────────────────────────────────────────
@@ -853,24 +930,88 @@ function buildSidebar() {
 function getNextShortcut() { const used = new Set(categories.map(c => c.shortcut)); for (const s of [...DEFAULT_SHORTCUTS, ...EXTRA_SHORTCUTS]) if (!used.has(s)) return s; return null; }
 function openNewCategoryModal() { document.getElementById('new-cat-name').value = ''; document.getElementById('new-cat-bold').checked = false; document.getElementById('new-cat-italic').checked = false; updateNewCatPreview(); document.getElementById('new-cat-modal').classList.add('open'); document.getElementById('new-cat-name').focus(); }
 function updateNewCatPreview() {
-  const preview = document.getElementById('new-cat-preview'); const name = document.getElementById('new-cat-name').value.trim();
-  if (!name) { preview.innerHTML = '<span style="font-size:0.75rem;color:var(--line-num)">Enter a name to preview colors</span>'; return; }
-  const idx = categories.length; let html = '';
-  for (const [id, theme] of Object.entries(THEMES)) { const color = generateColorForTheme(theme.colors, idx); html += `<div class="preview-chip"><span class="chip-swatch" style="background:${color}"></span>${theme.name}</div>`; }
-  preview.innerHTML = html;
+  const preview = document.getElementById('new-cat-preview');
+  const name = document.getElementById('new-cat-name').value.trim();
+  preview.innerHTML = '';
+
+  if (!name) return;
+
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
+  for (const [themeId, theme] of Object.entries(THEMES)) {
+    const modal = document.getElementById('new-cat-modal');
+    const editId = modal._editCatId;
+    const color = (editId && theme.colors[editId]) ? theme.colors[editId] : generateColorForCategory(themeId, id);
+
+    const chip = document.createElement('div');
+    chip.className = 'preview-color';
+    chip.innerHTML = `<span class="dot" style="background:${color};width:10px;height:10px;border-radius:50%;flex-shrink:0;"></span><span>${theme.name}</span>`;
+    preview.appendChild(chip);
+  }
 }
 function addNewCategory() {
-  const nameInput = document.getElementById('new-cat-name'); const name = nameInput.value.trim();
-  if (!name) { showToast('Enter a category name'); nameInput.focus(); return; }
-  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-  if (categories.some(c => c.id === id)) { showToast('Category already exists'); return; }
-  const bold = document.getElementById('new-cat-bold').checked; const italic = document.getElementById('new-cat-italic').checked;
-  const shortcut = getNextShortcut(); categories.push({ id, label: name, shortcut, bold, italic });
-  const idx = categories.length - 1;
-  for (const [themeId, theme] of Object.entries(THEMES)) theme.colors[id] = generateColorForTheme(theme.colors, idx);
-  if (customColors) customColors[id] = generateColorForTheme(THEMES[currentThemeId].colors, idx);
-  updateDynamicStyles(); applyTheme(currentThemeId); buildSidebar(); updateHelpContent(); saveToStorage();
-  document.getElementById('new-cat-modal').classList.remove('open'); showToast(`Added "${name}" category`);
+  const modal = document.getElementById('new-cat-modal');
+  const nameInput = document.getElementById('new-cat-name');
+  const boldCheck = document.getElementById('new-cat-bold');
+  const italicCheck = document.getElementById('new-cat-italic');
+
+  const name = nameInput.value.trim();
+  if (!name) { showToast('Enter a category name'); return; }
+
+  const editId = modal._editCatId;
+
+  if (editId) {
+    // ── Editing existing category ──
+    const cat = categories.find(c => c.id === editId);
+    if (!cat) return;
+
+    cat.label = name;
+    cat.bold = boldCheck.checked;
+    cat.italic = italicCheck.checked;
+
+    modal._editCatId = null;
+    modal.querySelector('h2').textContent = 'Add Highlight Category';
+    document.getElementById('btn-new-cat-add').textContent = 'Add Category';
+    modal.classList.remove('open');
+
+    updateDynamicStyles();
+    buildSidebar();
+    render();
+    saveToStorage();
+    showToast(`Updated category "${name}"`);
+  } else {
+    // ── Creating new category ──
+    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    if (categories.some(c => c.id === id)) {
+      showToast('Category already exists');
+      return;
+    }
+
+    const newCat = {
+      id,
+      label: name,
+      bold: boldCheck.checked,
+      italic: italicCheck.checked,
+    };
+
+    // Generate colors for each theme
+    for (const [themeId, theme] of Object.entries(THEMES)) {
+      theme.colors[id] = generateColorForCategory(themeId, id);
+    }
+
+    categories.push(newCat);
+    modal.classList.remove('open');
+
+    updateDynamicStyles();
+    buildSidebar();
+    updateHelpContent();
+    saveToStorage();
+    showToast(`Added category "${name}"`);
+  }
+
+  nameInput.value = '';
+  boldCheck.checked = false;
+  italicCheck.checked = false;
 }
 
 // ─────────────────────────────────────────────
@@ -1270,6 +1411,12 @@ function saveToStorage() {
   };
   localStorage.setItem('chromatura_data', JSON.stringify(data));
 }
+
+const _baseSaveToStorage = saveToStorage;
+saveToStorage = function () {
+  _baseSaveToStorage();
+  saveFilesToStorage();
+};
 
 function loadFromStorage() {
   try {
@@ -2679,6 +2826,403 @@ function deleteUITheme(id) {
   saveToStorage();
   showToast('UI theme deleted');
 }
+
+// ─────────────────────────────────────────────
+// FILE EXPLORER
+// ─────────────────────────────────────────────
+
+let files = [];
+let activeFileId = null;
+let fileExplorerOpen = false;
+
+function generateFileId() {
+  return 'file_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+}
+
+function createNewFile(name = null) {
+  // Save current file first
+  saveCurrentFileState();
+
+  const id = generateFileId();
+  const fileName = name || generateFileName();
+
+  const file = {
+    id,
+    name: fileName,
+    text: '',
+    highlights: [],
+    foldedRegions: [],
+    createdAt: new Date().toISOString(),
+    modifiedAt: new Date().toISOString(),
+  };
+
+  files.push(file);
+  switchToFile(id);
+  showToast(`Created "${fileName}"`);
+  return file;
+}
+
+function generateFileName() {
+  const existing = files.map(f => f.name);
+  let num = files.length + 1;
+  let name = `Untitled ${num}`;
+  while (existing.includes(name)) {
+    num++;
+    name = `Untitled ${num}`;
+  }
+  return name;
+}
+
+function saveCurrentFileState() {
+  if (!activeFileId) return;
+  const file = files.find(f => f.id === activeFileId);
+  if (!file) return;
+
+  file.text = editorEl.value;
+  file.highlights = [...highlights];
+  file.foldedRegions = typeof foldedRegions !== 'undefined' ? [...foldedRegions] : [];
+  file.modifiedAt = new Date().toISOString();
+}
+
+function switchToFile(id) {
+  // Save current state before switching
+  if (activeFileId && activeFileId !== id) {
+    saveCurrentFileState();
+  }
+
+  const file = files.find(f => f.id === id);
+  if (!file) return;
+
+  activeFileId = id;
+
+  // Load file state into editor
+  editorEl.value = file.text;
+  previousText = file.text;
+  highlights = file.highlights ? [...file.highlights] : [];
+  if (typeof foldedRegions !== 'undefined') {
+    foldedRegions = file.foldedRegions ? [...file.foldedRegions] : [];
+  }
+
+  // Refresh everything
+  render();
+  updateLineNumbers();
+  updateIndentGuides();
+  updateScrollPadding();
+  updateStatusFileName();
+  buildFileList();
+  saveAllToStorage();
+}
+
+function renameFile(id) {
+  const file = files.find(f => f.id === id);
+  if (!file) return;
+
+  const item = document.querySelector(`.file-item[data-id="${id}"]`);
+  if (!item) return;
+
+  const nameEl = item.querySelector('.file-item-name');
+  const originalName = file.name;
+
+  // Replace name with input
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'file-item-name-input';
+  input.value = file.name;
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  function commit() {
+    const newName = input.value.trim() || originalName;
+    file.name = newName;
+    file.modifiedAt = new Date().toISOString();
+    updateStatusFileName();
+    buildFileList();
+    saveAllToStorage();
+  }
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = originalName; input.blur(); }
+  });
+}
+
+function deleteFile(id) {
+  const file = files.find(f => f.id === id);
+  if (!file) return;
+
+  // Don't delete the last file
+  if (files.length <= 1) {
+    showToast("Can't delete the only file");
+    return;
+  }
+
+  if (!confirm(`Delete "${file.name}"?`)) return;
+
+  const idx = files.findIndex(f => f.id === id);
+  files.splice(idx, 1);
+
+  // If we deleted the active file, switch to another
+  if (activeFileId === id) {
+    const newIdx = Math.min(idx, files.length - 1);
+    switchToFile(files[newIdx].id);
+  } else {
+    buildFileList();
+  }
+
+  saveAllToStorage();
+  showToast(`Deleted "${file.name}"`);
+}
+
+function duplicateFile(id) {
+  const source = files.find(f => f.id === id);
+  if (!source) return;
+
+  saveCurrentFileState();
+
+  const newFile = {
+    id: generateFileId(),
+    name: source.name + ' (copy)',
+    text: source.text,
+    highlights: source.highlights ? JSON.parse(JSON.stringify(source.highlights)) : [],
+    foldedRegions: source.foldedRegions ? [...source.foldedRegions] : [],
+    createdAt: new Date().toISOString(),
+    modifiedAt: new Date().toISOString(),
+  };
+
+  files.push(newFile);
+  switchToFile(newFile.id);
+  showToast(`Duplicated as "${newFile.name}"`);
+}
+
+function buildFileList() {
+  const list = document.getElementById('file-list');
+  list.innerHTML = '';
+
+  if (files.length === 0) {
+    list.innerHTML = '<div class="file-empty-state">No files yet</div>';
+    return;
+  }
+
+  for (const file of files) {
+    const item = document.createElement('div');
+    item.className = 'file-item' + (file.id === activeFileId ? ' active' : '');
+    item.dataset.id = file.id;
+
+    // Icon
+    const icon = document.createElement('span');
+    icon.className = 'file-item-icon';
+    icon.textContent = '📄';
+
+    // Name
+    const name = document.createElement('span');
+    name.className = 'file-item-name';
+    name.textContent = file.name;
+
+    // Meta info (line count)
+    const meta = document.createElement('span');
+    meta.className = 'file-item-meta';
+    const lineCount = file.text ? file.text.split('\n').length : 0;
+    const hlCount = file.highlights ? file.highlights.length : 0;
+    meta.textContent = `${lineCount}L`;
+    meta.title = `${lineCount} lines, ${hlCount} highlights`;
+
+    // Action buttons (shown on hover)
+    const actions = document.createElement('div');
+    actions.className = 'file-item-actions';
+
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'file-item-action-btn';
+    renameBtn.textContent = '✏️';
+    renameBtn.title = 'Rename';
+    renameBtn.addEventListener('click', (e) => { e.stopPropagation(); renameFile(file.id); });
+
+    const dupeBtn = document.createElement('button');
+    dupeBtn.className = 'file-item-action-btn';
+    dupeBtn.textContent = '📋';
+    dupeBtn.title = 'Duplicate';
+    dupeBtn.addEventListener('click', (e) => { e.stopPropagation(); duplicateFile(file.id); });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'file-item-action-btn delete';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Delete';
+    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteFile(file.id); });
+
+    actions.appendChild(renameBtn);
+    actions.appendChild(dupeBtn);
+    actions.appendChild(delBtn);
+
+    item.appendChild(icon);
+    item.appendChild(name);
+    item.appendChild(meta);
+    item.appendChild(actions);
+
+    // Click to switch
+    item.addEventListener('click', () => switchToFile(file.id));
+
+    // Double-click to rename
+    item.addEventListener('dblclick', (e) => { e.preventDefault(); renameFile(file.id); });
+
+    list.appendChild(item);
+  }
+}
+
+function toggleFileExplorer() {
+  const explorer = document.getElementById('file-explorer');
+  fileExplorerOpen = !fileExplorerOpen;
+  explorer.classList.toggle('open', fileExplorerOpen);
+  saveAllToStorage();
+}
+
+function updateStatusFileName() {
+  const el = document.getElementById('status-file');
+  if (!el) return;
+  const file = files.find(f => f.id === activeFileId);
+  el.textContent = file ? file.name : 'Untitled';
+}
+
+// ── Persistence (files are stored separately) ──
+
+function saveFilesToStorage() {
+  try {
+    saveCurrentFileState();
+    localStorage.setItem('chromatura_files', JSON.stringify({
+      files,
+      activeFileId,
+      fileExplorerOpen,
+    }));
+  } catch (e) {
+    console.warn('Failed to save files:', e);
+  }
+}
+
+function loadFilesFromStorage() {
+  try {
+    const raw = localStorage.getItem('chromatura_files');
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+
+    if (data.files && data.files.length > 0) {
+      files = data.files;
+      activeFileId = data.activeFileId || files[0].id;
+      fileExplorerOpen = data.fileExplorerOpen || false;
+
+      // Validate active file exists
+      if (!files.find(f => f.id === activeFileId)) {
+        activeFileId = files[0].id;
+      }
+
+      return true;
+    }
+  } catch (e) {
+    console.warn('Failed to load files:', e);
+  }
+  return false;
+}
+
+function initFileExplorer() {
+  const hasFiles = loadFilesFromStorage();
+
+  if (!hasFiles) {
+    // Create initial file from current editor content
+    const file = {
+      id: generateFileId(),
+      name: 'Untitled 1',
+      text: editorEl.value || '',
+      highlights: [...highlights],
+      foldedRegions: typeof foldedRegions !== 'undefined' ? [...foldedRegions] : [],
+      createdAt: new Date().toISOString(),
+      modifiedAt: new Date().toISOString(),
+    };
+    files = [file];
+    activeFileId = file.id;
+  } else {
+    // Load active file into editor
+    const file = files.find(f => f.id === activeFileId);
+    if (file) {
+      editorEl.value = file.text;
+      previousText = file.text;
+      highlights = file.highlights ? [...file.highlights] : [];
+      if (typeof foldedRegions !== 'undefined') {
+        foldedRegions = file.foldedRegions ? [...file.foldedRegions] : [];
+      }
+    }
+  }
+
+  // Apply explorer open state
+  const explorer = document.getElementById('file-explorer');
+  explorer.classList.toggle('open', fileExplorerOpen);
+
+  buildFileList();
+  updateStatusFileName();
+}
+
+// Hook into the existing save function
+const _originalSaveToStorage = typeof saveToStorage === 'function' ? saveToStorage : null;
+
+function saveAllToStorage() {
+  if (_originalSaveToStorage) _originalSaveToStorage();
+  saveFilesToStorage();
+}
+
+// ─────────────────────────────────────────────
+// EDIT / DELETE CATEGORIES
+// ─────────────────────────────────────────────
+
+function deleteCategory(catId) {
+  const cat = categories.find(c => c.id === catId);
+  if (!cat) return;
+  if (BUILTIN_IDS.has(catId)) return;
+
+  if (!confirm(`Delete category "${cat.label}"?\n\nAll highlights using this category will be removed.`)) return;
+
+  // Remove all highlights using this category
+  highlights = highlights.filter(h => h.cat !== catId);
+
+  // Remove from categories
+  categories = categories.filter(c => c.id !== catId);
+
+  // Clean up theme colors
+  for (const [themeId, theme] of Object.entries(THEMES)) {
+    delete theme.colors[catId];
+  }
+
+  buildSidebar();
+  render();
+  updateDynamicStyles();
+  saveToStorage();
+  showToast(`Deleted category "${cat.label}"`);
+}
+
+function openEditCategoryModal(catId) {
+  const cat = categories.find(c => c.id === catId);
+  if (!cat || BUILTIN_IDS.has(catId)) return;
+
+  // Reuse the new-cat modal with tweaks
+  const modal = document.getElementById('new-cat-modal');
+  const title = modal.querySelector('h2');
+  const nameInput = document.getElementById('new-cat-name');
+  const boldCheck = document.getElementById('new-cat-bold');
+  const italicCheck = document.getElementById('new-cat-italic');
+  const addBtn = document.getElementById('btn-new-cat-add');
+
+  title.textContent = 'Edit Category';
+  nameInput.value = cat.label;
+  boldCheck.checked = !!cat.bold;
+  italicCheck.checked = !!cat.italic;
+  addBtn.textContent = 'Save';
+
+  // Store edit context
+  modal._editCatId = catId;
+
+  updateNewCatPreview();
+  modal.classList.add('open');
+}
+
+// Patch addNewCategory to handle editing
+const _originalAddNewCategory = typeof addNewCategory === 'function' ? addNewCategory : null;
 
 // ─────────────────────────────────────────────
 // GO

@@ -51,6 +51,21 @@
   </header>
 
   <div class="main-container">
+    <!-- File Explorer Panel -->
+    <div class="file-explorer" id="file-explorer">
+      <div class="file-explorer-header">
+        <h3>Files</h3>
+        <div class="file-explorer-actions">
+          <button id="btn-new-file" class="file-explorer-action" title="New file">+</button>
+          <button id="btn-toggle-files" class="file-explorer-action" title="Close file explorer">✕</button>
+        </div>
+      </div>
+      <div class="file-list" id="file-list"></div>
+    </div>
+
+    <!-- Collapsed file explorer tab -->
+    <button class="file-explorer-tab" id="file-explorer-tab" title="Open file explorer">📂</button>
+
     <div class="sidebar" id="sidebar">
       <h3>Highlight As</h3>
     </div>
@@ -67,6 +82,7 @@
   <div class="status-bar">
     <span id="status-left">Ready</span>
     <div class="status-right">
+      <span id="status-file">Untitled</span>
       <span id="status-highlights">0 highlights</span>
       <span id="status-cursor">Ln 1, Col 1</span>
     </div>
