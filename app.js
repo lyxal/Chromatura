@@ -879,7 +879,6 @@ function buildSidebar() {
       || (theme && theme.colors[cat.id])
       || null;
     if (!color) {
-      const idx = categories.indexOf(cat);
       color = generateColorForTheme(theme.colors, idx);
       theme.colors[cat.id] = color; // persist so it doesn't regenerate
     }
