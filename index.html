@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chromatura — Manual Syntax Highlighter</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">Chromatura <span>— manual syntax highlighter</span></div>
+    <div class="controls">
+
+      <!-- Theme Menu -->
+      <div class="dropdown">
+        <button class="dropdown-trigger">🎨 Theme ▾</button>
+        <div class="dropdown-menu">
+          <div class="dropdown-section">
+            <label class="dropdown-label">Syntax Theme</label>
+            <select id="theme-select" class="dropdown-select"></select>
+          </div>
+          <button class="dropdown-item" id="btn-edit-theme">🎨 Edit Colors</button>
+          <button class="dropdown-item" id="btn-import-syntax-theme">📥 Import Syntax Theme</button>
+          <hr class="dropdown-divider" />
+          <button class="dropdown-item" id="btn-ui-theme">🎭 UI Theme</button>
+          <button class="dropdown-item" id="btn-import-ui-theme">📥 Import UI Theme</button>
+        </div>
+      </div>
+
+      <!-- File Menu -->
+      <div class="dropdown">
+        <button class="dropdown-trigger">📁 File ▾</button>
+        <div class="dropdown-menu">
+          <button class="dropdown-item" id="btn-export">📤 Export Project</button>
+          <button class="dropdown-item" id="btn-import">📥 Import Project</button>
+          <hr class="dropdown-divider" />
+          <button class="dropdown-item" id="btn-export-img">🖼️ Export as Image</button>
+        </div>
+      </div>
+
+      <button id="btn-settings" title="Font, indent & display settings">⚙️ Settings</button>
+      <button id="btn-help" title="Keyboard shortcuts">❓ Help</button>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <div class="sidebar" id="sidebar">
+      <h3>Highlight As</h3>
+    </div>
+    <div class="editor-wrapper">
+      <div class="line-numbers" id="line-numbers"></div>
+      <div class="editor-container">
+        <div id="highlight-layer" aria-hidden="true"></div>
+        <div id="indent-guides" aria-hidden="true"></div>
+        <textarea id="editor" spellcheck="false" placeholder="Paste or type your code here..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span id="status-left">Ready</span>
+    <div class="status-right">
+      <span id="status-highlights">0 highlights</span>
+      <span id="status-cursor">Ln 1, Col 1</span>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Theme Editor Modal -->
+  <div class="modal-overlay" id="theme-modal">
+    <div class="modal">
+      <h2>Customize Theme</h2>
+      <div id="theme-color-rows"></div>
+      <div class="modal-actions">
+        <button id="btn-syntax-theme-export" title="Export current syntax theme">📤 Export Theme</button>
+        <button id="btn-theme-cancel">Cancel</button>
+        <button id="btn-theme-save" class="btn-primary">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div class="modal-overlay" id="help-modal">
+    <div class="modal">
+      <h2>Keyboard Shortcuts & Help</h2>
+      <div class="help-content" id="help-content"></div>
+      <div class="modal-actions">
+        <button id="btn-help-close" class="btn-primary">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Category Modal -->
+  <div class="modal-overlay" id="new-cat-modal">
+    <div class="modal">
+      <h2>Add Highlight Category</h2>
+      <div class="field">
+        <label for="new-cat-name">Category Name</label>
+        <input type="text" id="new-cat-name" placeholder="e.g. macro, label, pragma..." />
+      </div>
+      <div class="field">
+        <label>Style</label>
+        <div class="style-options">
+          <label><input type="checkbox" id="new-cat-bold" /> Bold</label>
+          <label><input type="checkbox" id="new-cat-italic" /> Italic</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Generated Colors (per theme)</label>
+        <div class="preview-colors" id="new-cat-preview"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-new-cat-cancel">Cancel</button>
+        <button id="btn-new-cat-add" class="btn-primary">Add Category</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal" style="width:600px;">
+      <h2>Editor Settings</h2>
+      <div class="settings-grid">
+        <div class="field">
+          <label>Indent Size (spaces)</label>
+          <div class="inline-setting">
+            <input type="number" id="setting-indent-size" min="1" max="16" value="4" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Line Height</label>
+          <div class="inline-setting">
+            <input type="range" id="setting-line-height" min="1.0" max="3.0" step="0.1" value="1.6" />
+            <span class="value-display" id="line-height-display">1.6</span>
+          </div>
+        </div>
+        <div class="field settings-full">
+          <label>Font</label>
+          <div class="font-list" id="font-list"></div>
+          <div class="custom-font-row">
+            <button id="btn-load-font" title="Load a .ttf, .otf, or .woff2 font file">📁 Load Font File</button>
+            <span id="custom-font-name" style="font-size:0.75rem;color:var(--line-num);"></span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-settings-cancel">Cancel</button>
+        <button id="btn-settings-save" class="btn-primary">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- UI Theme Modal -->
+  <div class="modal-overlay" id="ui-theme-modal">
+    <div class="modal" style="width:550px;">
+      <h2>UI Theme</h2>
+      <div class="ui-theme-grid" id="ui-theme-grid"></div>
+      <hr style="border:none;border-top:1px solid var(--toolbar-border);margin:16px 0;" />
+      <h3 style="font-size:0.8rem;color:var(--line-num);margin-bottom:12px;">Custom UI Colors</h3>
+      <div class="settings-grid">
+        <div class="field">
+          <label>Background</label>
+          <input type="color" id="ui-color-bg" value="#1e1e2e" />
+        </div>
+        <div class="field">
+          <label>Editor Background</label>
+          <input type="color" id="ui-color-editor-bg" value="#181825" />
+        </div>
+        <div class="field">
+          <label>Foreground</label>
+          <input type="color" id="ui-color-fg" value="#cdd6f4" />
+        </div>
+        <div class="field">
+          <label>Accent</label>
+          <input type="color" id="ui-color-accent" value="#cba6f7" />
+        </div>
+        <div class="field">
+          <label>Toolbar</label>
+          <input type="color" id="ui-color-toolbar" value="#313244" />
+        </div>
+        <div class="field">
+          <label>Border</label>
+          <input type="color" id="ui-color-border" value="#45475a" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-ui-theme-export" title="Export current UI theme">📤 Export Theme</button>
+        <button id="btn-ui-theme-cancel">Cancel</button>
+        <button id="btn-ui-theme-apply" class="btn-primary">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Image Modal -->
+  <div class="modal-overlay" id="export-img-modal">
+    <div class="modal" style="width:500px;">
+      <h2>Export as Image</h2>
+      <div class="field">
+        <label>Theme to render</label>
+        <select id="img-export-theme" style="width:100%;"></select>
+      </div>
+      <div class="field">
+        <label>Lines per image</label>
+        <div class="inline-setting">
+          <input type="number" id="img-lines-per" min="1" value="50" style="width:100px;" />
+          <label
+            style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--editor-fg);text-transform:none;letter-spacing:0;cursor:pointer;">
+            <input type="checkbox" id="img-all-lines" checked /> Whole program
+          </label>
+        </div>
+        <div id="img-page-info" style="font-size:0.75rem;color:var(--line-num);margin-top:6px;"></div>
+      </div>
+      <div class="field">
+        <label>Padding (px)</label>
+        <input type="number" id="img-padding" min="0" max="200" value="32" style="width:100px;" />
+      </div>
+      <div class="field">
+        <label>Scale (for high-DPI)</label>
+        <div class="inline-setting">
+          <input type="range" id="img-scale" min="1" max="4" step="1" value="2" />
+          <span class="value-display" id="img-scale-display">2x</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Show line numbers</label>
+        <label
+          style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--editor-fg);text-transform:none;letter-spacing:0;cursor:pointer;">
+          <input type="checkbox" id="img-line-numbers" checked /> Include line numbers
+        </label>
+      </div>
+      <div class="field">
+        <label>Preview</label>
+        <div id="img-preview"
+          style="max-height:200px;overflow:auto;background:var(--editor-bg);border-radius:4px;border:1px solid var(--toolbar-border);padding:8px;">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-img-cancel">Cancel</button>
+        <button id="btn-img-export" class="btn-primary">Export</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Theme Modal -->
+  <div class="modal-overlay" id="export-theme-modal">
+    <div class="modal" style="width:500px;">
+      <h2 id="export-theme-title">Export Theme</h2>
+      <div class="field">
+        <label>Theme Name</label>
+        <input type="text" id="export-theme-name" placeholder="My Custom Theme" />
+      </div>
+      <div id="export-theme-preview" style="margin-bottom:16px;"></div>
+      <div class="modal-actions">
+        <button id="btn-export-theme-cancel">Cancel</button>
+        <button id="btn-export-theme-save" class="btn-primary">Export</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden file inputs -->
+  <input type="file" id="file-import" accept=".json" style="display:none" />
+  <input type="file" id="font-file-input" accept=".ttf,.otf,.woff,.woff2" style="display:none" />
+  <input type="file" id="file-import-syntax-theme" accept=".json" style="display:none" />
+  <input type="file" id="file-import-ui-theme" accept=".json" style="display:none" />
+
+  <script src="app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,1886 @@
+// ─────────────────────────────────────────────
+// GOOGLE FONTS
+// ─────────────────────────────────────────────
+const GOOGLE_FONTS = [
+  { name: 'JetBrains Mono', family: "'JetBrains Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap' },
+  { name: 'Fira Code', family: "'Fira Code', monospace", url: 'https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap' },
+  { name: 'Source Code Pro', family: "'Source Code Pro', monospace", url: 'https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&display=swap' },
+  { name: 'IBM Plex Mono', family: "'IBM Plex Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap' },
+  { name: 'Roboto Mono', family: "'Roboto Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap' },
+  { name: 'Inconsolata', family: "'Inconsolata', monospace", url: 'https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap' },
+  { name: 'Ubuntu Mono', family: "'Ubuntu Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Ubuntu+Mono:wght@400;700&display=swap' },
+  { name: 'Space Mono', family: "'Space Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap' },
+  { name: 'Anonymous Pro', family: "'Anonymous Pro', monospace", url: 'https://fonts.googleapis.com/css2?family=Anonymous+Pro:wght@400;700&display=swap' },
+  { name: 'Cousine', family: "'Cousine', monospace", url: 'https://fonts.googleapis.com/css2?family=Cousine:wght@400;700&display=swap' },
+  { name: 'Red Hat Mono', family: "'Red Hat Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Red+Hat+Mono:wght@400;700&display=swap' },
+  { name: 'Martian Mono', family: "'Martian Mono', monospace", url: 'https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;700&display=swap' },
+];
+const SYSTEM_FONTS = [
+  { name: 'System Default', family: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace", url: null },
+  { name: 'Cascadia Code', family: "'Cascadia Code', monospace", url: null },
+  { name: 'Consolas', family: "'Consolas', monospace", url: null },
+  { name: 'Menlo', family: "'Menlo', monospace", url: null },
+  { name: 'Monaco', family: "'Monaco', monospace", url: null },
+];
+const ALL_FONTS = [...SYSTEM_FONTS, ...GOOGLE_FONTS];
+const loadedGoogleFonts = new Set();
+function loadGoogleFont(font) {
+  if (!font.url || loadedGoogleFonts.has(font.name)) return;
+  const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = font.url;
+  document.head.appendChild(link); loadedGoogleFonts.add(font.name);
+}
+GOOGLE_FONTS.forEach(f => loadGoogleFont(f));
+
+// ─────────────────────────────────────────────
+// THEMES
+// ─────────────────────────────────────────────
+const THEMES = {
+  catppuccin: { name: 'Catppuccin Mocha', colors: { keyword: '#cba6f7', string: '#a6e3a1', comment: '#6c7086', function: '#89b4fa', type: '#f9e2af', number: '#fab387', operator: '#89dceb', variable: '#f5c2e7', constant: '#f38ba8', decorator: '#94e2d5', tag: '#cba6f7', attribute: '#89b4fa' } },
+  monokai: { name: 'Monokai', colors: { keyword: '#f92672', string: '#e6db74', comment: '#75715e', function: '#a6e22e', type: '#66d9ef', number: '#ae81ff', operator: '#f92672', variable: '#fd971f', constant: '#ae81ff', decorator: '#a6e22e', tag: '#f92672', attribute: '#a6e22e' } },
+  dracula: { name: 'Dracula', colors: { keyword: '#ff79c6', string: '#f1fa8c', comment: '#6272a4', function: '#50fa7b', type: '#8be9fd', number: '#bd93f9', operator: '#ff79c6', variable: '#ffb86c', constant: '#bd93f9', decorator: '#50fa7b', tag: '#ff79c6', attribute: '#50fa7b' } },
+  solarized: { name: 'Solarized Dark', colors: { keyword: '#b58900', string: '#2aa198', comment: '#586e75', function: '#268bd2', type: '#cb4b16', number: '#d33682', operator: '#859900', variable: '#6c71c4', constant: '#dc322f', decorator: '#2aa198', tag: '#b58900', attribute: '#268bd2' } },
+  github_dark: { name: 'GitHub Dark', colors: { keyword: '#ff7b72', string: '#a5d6ff', comment: '#8b949e', function: '#d2a8ff', type: '#79c0ff', number: '#79c0ff', operator: '#ff7b72', variable: '#ffa657', constant: '#79c0ff', decorator: '#d2a8ff', tag: '#7ee787', attribute: '#79c0ff' } },
+  nord: { name: 'Nord', colors: { keyword: '#81a1c1', string: '#a3be8c', comment: '#616e88', function: '#88c0d0', type: '#8fbcbb', number: '#b48ead', operator: '#81a1c1', variable: '#d08770', constant: '#b48ead', decorator: '#8fbcbb', tag: '#81a1c1', attribute: '#88c0d0' } },
+  gruvbox: { name: 'Gruvbox Dark', colors: { keyword: '#fb4934', string: '#b8bb26', comment: '#928374', function: '#fabd2f', type: '#83a598', number: '#d3869b', operator: '#fe8019', variable: '#8ec07c', constant: '#d3869b', decorator: '#fabd2f', tag: '#fb4934', attribute: '#b8bb26' } },
+  one_dark: { name: 'One Dark', colors: { keyword: '#c678dd', string: '#98c379', comment: '#5c6370', function: '#61afef', type: '#e5c07b', number: '#d19a66', operator: '#56b6c2', variable: '#e06c75', constant: '#d19a66', decorator: '#61afef', tag: '#e06c75', attribute: '#d19a66' } },
+};
+
+// ─────────────────────────────────────────────
+// CATEGORIES
+// ─────────────────────────────────────────────
+const DEFAULT_SHORTCUTS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
+const EXTRA_SHORTCUTS = ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
+let categories = [
+  { id: 'keyword', label: 'Keyword', shortcut: '1', bold: true, italic: false },
+  { id: 'string', label: 'String', shortcut: '2', bold: false, italic: false },
+  { id: 'comment', label: 'Comment', shortcut: '3', bold: false, italic: true },
+  { id: 'function', label: 'Function', shortcut: '4', bold: false, italic: false },
+  { id: 'type', label: 'Type', shortcut: '5', bold: false, italic: false },
+  { id: 'number', label: 'Number', shortcut: '6', bold: false, italic: false },
+  { id: 'operator', label: 'Operator', shortcut: '7', bold: false, italic: false },
+  { id: 'variable', label: 'Variable', shortcut: '8', bold: false, italic: false },
+  { id: 'constant', label: 'Constant', shortcut: '9', bold: true, italic: false },
+  { id: 'decorator', label: 'Decorator', shortcut: '0', bold: false, italic: true },
+  { id: 'tag', label: 'Tag', shortcut: '-', bold: false, italic: false },
+  { id: 'attribute', label: 'Attribute', shortcut: '=', bold: false, italic: false },
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let highlights = [];
+let currentThemeId = 'catppuccin';
+let customColors = null;
+let indentSize = 4;
+let editorLineHeight = 1.6;
+let selectedFontFamily = ALL_FONTS[0].family;
+let selectedFontName = ALL_FONTS[0].name;
+let customFontName = null;
+let customFontFamily = null;
+let customFontDataUrl = null;
+let previousText = '';
+let foldedRegions = []; // Array of { startLine, endLine } (0-indexed)
+
+// ─────────────────────────────────────────────
+// DOM REFS
+// ─────────────────────────────────────────────
+const editorEl = document.getElementById('editor');
+const highlightLayer = document.getElementById('highlight-layer');
+const indentGuidesEl = document.getElementById('indent-guides');
+const lineNumbers = document.getElementById('line-numbers');
+const themeSelect = document.getElementById('theme-select');
+const sidebar = document.getElementById('sidebar');
+const toastEl = document.getElementById('toast');
+const statusLeft = document.getElementById('status-left');
+const statusHighlights = document.getElementById('status-highlights');
+const statusCursor = document.getElementById('status-cursor');
+
+// ─────────────────────────────────────────────
+// COLOR UTILITIES
+// ─────────────────────────────────────────────
+function hexToHSL(hex) {
+  let r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+  if (max === min) { h = s = 0; } else {
+    const d = max - min; s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) { case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break; case g: h = ((b - r) / d + 2) / 6; break; case b: h = ((r - g) / d + 4) / 6; break; }
+  }
+  return [h * 360, s * 100, l * 100];
+}
+function hslToHex(h, s, l) {
+  h /= 360; s /= 100; l /= 100; let r, g, b;
+  if (s === 0) { r = g = b = l; } else {
+    const hue2rgb = (p, q, t) => { if (t < 0) t += 1; if (t > 1) t -= 1; if (t < 1 / 6) return p + (q - p) * 6 * t; if (t < 1 / 2) return q; if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6; return p; };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s; const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1 / 3); g = hue2rgb(p, q, h); b = hue2rgb(p, q, h - 1 / 3);
+  }
+  const toHex = x => { const hex = Math.round(x * 255).toString(16); return hex.length === 1 ? '0' + hex : hex; };
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+function generateColorForTheme(themeColors, index) {
+  const existing = Object.values(themeColors);
+  let totalS = 0, totalL = 0; const hues = [];
+  for (const hex of existing) { const [h, s, l] = hexToHSL(hex); totalS += s; totalL += l; hues.push(h); }
+  const avgS = totalS / existing.length, avgL = totalL / existing.length;
+  const avgH = hues.reduce((a, b) => a + b, 0) / hues.length;
+  const newHue = (avgH + 137.508 * (index + 1)) % 360;
+  const sVar = Math.min(100, Math.max(20, avgS + (index % 3 - 1) * 8));
+  const lVar = Math.min(85, Math.max(40, avgL + (index % 5 - 2) * 5));
+  return hslToHex(newHue, sVar, lVar);
+}
+
+// ─────────────────────────────────────────────
+// DYNAMIC STYLES
+// ─────────────────────────────────────────────
+let dynamicStyleEl = null;
+function ensureDynamicStyles() { if (!dynamicStyleEl) { dynamicStyleEl = document.createElement('style'); document.head.appendChild(dynamicStyleEl); } }
+function updateDynamicStyles() {
+  ensureDynamicStyles(); let css = '';
+  for (const cat of categories) {
+    const styles = [`color: var(--hl-${cat.id})`];
+    if (cat.bold) styles.push('font-weight: bold');
+    if (cat.italic) styles.push('font-style: italic');
+    css += `.hl-${cat.id} { ${styles.join('; ')}; }\n`;
+  }
+  dynamicStyleEl.textContent = css;
+}
+
+// ─────────────────────────────────────────────
+// FONT MANAGEMENT
+// ─────────────────────────────────────────────
+let customFontStyleEl = null;
+function applyFont(family) { document.documentElement.style.setProperty('--editor-font', family); }
+function loadCustomFontFromDataUrl(name, dataUrl) {
+  if (!customFontStyleEl) { customFontStyleEl = document.createElement('style'); document.head.appendChild(customFontStyleEl); }
+  customFontStyleEl.textContent = `@font-face{font-family:'CustomUserFont';src:url('${dataUrl}');font-weight:100 900;font-style:normal;}`;
+  customFontName = name; customFontFamily = "'CustomUserFont', monospace"; customFontDataUrl = dataUrl;
+}
+function applyLineHeight(val) { document.documentElement.style.setProperty('--editor-line-height', val); }
+
+// ─────────────────────────────────────────────
+// SCROLL PAST END
+// ─────────────────────────────────────────────
+function updateScrollPadding() {
+  const container = editorEl.parentElement;
+  const containerHeight = container.clientHeight;
+  // Allow scrolling so last line can reach the top third of the viewport
+  const pad = Math.max(0, containerHeight - 60);
+  editorEl.style.paddingBottom = pad + 'px';
+  highlightLayer.style.paddingBottom = pad + 'px';
+}
+
+// ─────────────────────────────────────────────
+// FOLDING
+// ─────────────────────────────────────────────
+function getLineIndent(line) {
+  const match = line.match(/^( *)/);
+  return match ? match[1].length : 0;
+}
+
+function findFoldRange(lines, startLine) {
+  // startLine is the line BEFORE the indented block (the "header")
+  // The block starts at startLine+1
+  if (startLine >= lines.length - 1) return null;
+  const headerIndent = getLineIndent(lines[startLine]);
+  const blockIndent = getLineIndent(lines[startLine + 1]);
+  if (blockIndent <= headerIndent) return null;
+
+  let endLine = startLine + 1;
+  for (let i = startLine + 2; i < lines.length; i++) {
+    const line = lines[i];
+    // Empty lines don't break the block
+    if (line.trim() === '') { endLine = i; continue; }
+    const indent = getLineIndent(line);
+    if (indent > headerIndent) { endLine = i; }
+    else break;
+  }
+  return endLine > startLine ? { startLine, endLine } : null;
+}
+
+function getFoldableLines(lines) {
+  // Returns set of line indices that can start a fold
+  const foldable = new Set();
+  for (let i = 0; i < lines.length - 1; i++) {
+    if (isLineFolded(i)) continue;
+    const range = findFoldRange(lines, i);
+    if (range && range.endLine > range.startLine) foldable.add(i);
+  }
+  return foldable;
+}
+
+function isLineFolded(lineIdx) {
+  return foldedRegions.some(r => r.startLine === lineIdx);
+}
+
+function isLineHidden(lineIdx) {
+  return foldedRegions.some(r => lineIdx > r.startLine && lineIdx <= r.endLine);
+}
+
+function toggleFold(lineIdx) {
+  const existing = foldedRegions.findIndex(r => r.startLine === lineIdx);
+  if (existing >= 0) {
+    foldedRegions.splice(existing, 1);
+  } else {
+    const lines = editorEl.value.split('\n');
+    const range = findFoldRange(lines, lineIdx);
+    if (range) {
+      foldedRegions.push(range);
+    }
+  }
+  render();
+  updateLineNumbers();
+  updateIndentGuides();
+  saveToStorage();
+}
+
+function getVisibleLines(lines) {
+  // Returns array of { lineIdx, text } for visible lines
+  const visible = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!isLineHidden(i)) {
+      visible.push({ lineIdx: i, text: lines[i] });
+    }
+  }
+  return visible;
+}
+
+// Recalculate fold regions when text changes
+function recalcFoldsAfterEdit(oldText, newText) {
+  const oldLines = oldText.split('\n');
+  const newLines = newText.split('\n');
+  const oldCount = oldLines.length;
+  const newCount = newLines.length;
+  const delta = newCount - oldCount;
+
+  if (delta === 0) return;
+
+  // Find first changed line
+  let firstChanged = 0;
+  while (firstChanged < oldCount && firstChanged < newCount && oldLines[firstChanged] === newLines[firstChanged]) firstChanged++;
+
+  const updated = [];
+  for (const r of foldedRegions) {
+    if (r.endLine < firstChanged) {
+      updated.push(r);
+    } else if (r.startLine >= firstChanged) {
+      const ns = r.startLine + delta;
+      const ne = r.endLine + delta;
+      if (ns >= 0 && ne >= ns && ne < newCount) {
+        updated.push({ startLine: ns, endLine: ne });
+      }
+    }
+    // Folds that span the edit region are dropped
+  }
+  foldedRegions = updated;
+}
+
+// ─────────────────────────────────────────────
+// INDENT GUIDES
+// ─────────────────────────────────────────────
+
+function updateIndentGuides() {
+  indentGuidesEl.innerHTML = '';
+  const text = editorEl.value;
+  if (!text) return;
+
+  const lines = text.split('\n');
+  const visibleLines = getVisibleLines(lines);
+
+  const cursorPos = editorEl.selectionStart;
+  const cursorLine = text.substring(0, cursorPos).split('\n').length - 1;
+  const cursorLineIndent = getLineIndent(lines[cursorLine] || '');
+
+  let blockStart = cursorLine, blockEnd = cursorLine;
+  if (cursorLineIndent > 0) {
+    for (let i = cursorLine - 1; i >= 0; i--) {
+      const li = lines[i];
+      if (li.trim() === '') continue;
+      if (getLineIndent(li) >= cursorLineIndent) blockStart = i;
+      else break;
+    }
+    for (let i = cursorLine + 1; i < lines.length; i++) {
+      const li = lines[i];
+      if (li.trim() === '') continue;
+      if (getLineIndent(li) >= cursorLineIndent) blockEnd = i;
+      else break;
+    }
+  }
+
+  const measure = document.createElement('span');
+  measure.style.cssText = 'font-family:var(--editor-font);font-size:0.9rem;position:absolute;visibility:hidden;white-space:pre;';
+  measure.textContent = 'X';
+  document.body.appendChild(measure);
+  const charWidth = measure.getBoundingClientRect().width;
+  document.body.removeChild(measure);
+
+  const fontSize = parseFloat(getComputedStyle(editorEl).fontSize);
+  const lh = fontSize * editorLineHeight;
+
+  const container = document.createElement('div');
+  container.id = 'indent-guides-container';
+  container.style.position = 'relative';
+  container.style.width = '100%';
+  container.style.height = (visibleLines.length * lh) + 'px';
+  // Offset by current scroll position so guides track the content
+  container.style.transform = `translateY(${-editorEl.scrollTop}px)`;
+
+  for (let vi = 0; vi < visibleLines.length; vi++) {
+    const { lineIdx, text: lineText } = visibleLines[vi];
+    const indent = getLineIndent(lineText);
+    if (indent < indentSize) continue;
+
+    const levels = Math.floor(indent / indentSize);
+    for (let lvl = 1; lvl <= levels; lvl++) {
+      const guide = document.createElement('div');
+      guide.className = 'indent-guide-line';
+      const x = (lvl * indentSize) * charWidth;
+      const y = vi * lh;
+      guide.style.left = x + 'px';
+      guide.style.top = y + 'px';
+      guide.style.height = lh + 'px';
+
+      const isInBlock = lineIdx >= blockStart && lineIdx <= blockEnd;
+      if (isInBlock && (lvl * indentSize) <= cursorLineIndent) {
+        guide.classList.add('active');
+      }
+      container.appendChild(guide);
+    }
+  }
+
+  indentGuidesEl.appendChild(container);
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+function init() {
+  buildThemeSelect();
+  loadFromStorage();
+  updateDynamicStyles();
+  buildSidebar();
+  applyTheme(currentThemeId);
+  applyFont(selectedFontFamily);
+  applyLineHeight(editorLineHeight);
+  render();
+  updateLineNumbers();
+  updateHelpContent();
+  updateScrollPadding();
+  updateIndentGuides();
+
+  editorEl.addEventListener('input', onEditorInput);
+  editorEl.addEventListener('scroll', syncScroll);
+  editorEl.addEventListener('keydown', onKeyDown);
+  editorEl.addEventListener('mouseup', () => { updateCursorStatus(); updateIndentGuides(); });
+  editorEl.addEventListener('keyup', () => { updateCursorStatus(); updateIndentGuides(); });
+  editorEl.addEventListener('click', () => updateIndentGuides());
+
+  new ResizeObserver(() => updateScrollPadding()).observe(editorEl.parentElement);
+
+  themeSelect.addEventListener('change', () => {
+    currentThemeId = themeSelect.value; customColors = null;
+    applyTheme(currentThemeId); render(); saveToStorage();
+  });
+
+  document.getElementById('btn-edit-theme').addEventListener('click', openThemeEditor);
+  document.getElementById('btn-settings').addEventListener('click', openSettingsModal);
+  document.getElementById('btn-export').addEventListener('click', exportData);
+  document.getElementById('btn-import').addEventListener('click', () => document.getElementById('file-import').click());
+  document.getElementById('file-import').addEventListener('change', importData);
+  document.getElementById('btn-help').addEventListener('click', () => document.getElementById('help-modal').classList.add('open'));
+  document.getElementById('btn-help-close').addEventListener('click', () => document.getElementById('help-modal').classList.remove('open'));
+  document.getElementById('btn-theme-cancel').addEventListener('click', () => document.getElementById('theme-modal').classList.remove('open'));
+  document.getElementById('btn-theme-save').addEventListener('click', saveThemeEdits);
+  document.getElementById('btn-new-cat-cancel').addEventListener('click', () => document.getElementById('new-cat-modal').classList.remove('open'));
+  document.getElementById('btn-new-cat-add').addEventListener('click', addNewCategory);
+  document.getElementById('new-cat-name').addEventListener('input', updateNewCatPreview);
+  document.getElementById('btn-settings-cancel').addEventListener('click', () => document.getElementById('settings-modal').classList.remove('open'));
+  document.getElementById('btn-settings-save').addEventListener('click', saveSettings);
+  document.getElementById('btn-load-font').addEventListener('click', () => document.getElementById('font-file-input').click());
+  document.getElementById('font-file-input').addEventListener('change', onFontFileSelected);
+  document.getElementById('setting-line-height').addEventListener('input', e => {
+    document.getElementById('line-height-display').textContent = parseFloat(e.target.value).toFixed(1);
+  });
+
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+  });
+
+  document.getElementById('btn-export-img').addEventListener('click', openExportImageModal);
+  document.getElementById('btn-img-cancel').addEventListener('click', () => document.getElementById('export-img-modal').classList.remove('open'));
+  document.getElementById('btn-img-export').addEventListener('click', doExportImages);
+  document.getElementById('img-all-lines').addEventListener('change', () => { updateImgPageInfo(); updateImgPreview(); });
+  document.getElementById('img-lines-per').addEventListener('input', () => { updateImgPageInfo(); updateImgPreview(); });
+  document.getElementById('img-export-theme').addEventListener('change', updateImgPreview);
+  document.getElementById('img-padding').addEventListener('input', updateImgPreview);
+  document.getElementById('img-line-numbers').addEventListener('change', updateImgPreview);
+  document.getElementById('img-scale').addEventListener('input', e => {
+    document.getElementById('img-scale-display').textContent = e.target.value + 'x';
+  });
+  document.getElementById('btn-ui-theme').addEventListener('click', openUIThemeModal);
+  document.getElementById('btn-ui-theme-cancel').addEventListener('click', () => document.getElementById('ui-theme-modal').classList.remove('open'));
+  document.getElementById('btn-ui-theme-apply').addEventListener('click', applyCustomUITheme);
+
+  // Theme import/export
+  document.getElementById('btn-import-syntax-theme').addEventListener('click', () => document.getElementById('file-import-syntax-theme').click());
+  document.getElementById('file-import-syntax-theme').addEventListener('change', importSyntaxTheme);
+  document.getElementById('btn-import-ui-theme').addEventListener('click', () => document.getElementById('file-import-ui-theme').click());
+  document.getElementById('file-import-ui-theme').addEventListener('change', importUITheme);
+  document.getElementById('btn-syntax-theme-export').addEventListener('click', exportSyntaxTheme);
+  document.getElementById('btn-ui-theme-export').addEventListener('click', exportUITheme);
+  document.getElementById('btn-export-theme-cancel').addEventListener('click', () => document.getElementById('export-theme-modal').classList.remove('open'));
+  document.getElementById('btn-export-theme-save').addEventListener('click', doExportTheme);
+
+  // Dropdown menus
+  document.querySelectorAll('.dropdown-trigger').forEach(trigger => {
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const dropdown = trigger.parentElement;
+      const wasOpen = dropdown.classList.contains('open');
+      document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+      if (!wasOpen) dropdown.classList.add('open');
+    });
+  });
+
+  // Close dropdowns when clicking elsewhere
+  document.addEventListener('click', (e) => {
+    // Don't close if clicking inside a dropdown menu
+    if (e.target.closest('.dropdown-menu')) return;
+    document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+  });
+
+  // Close dropdown only when clicking a dropdown-item button
+  document.querySelectorAll('.dropdown-item').forEach(item => {
+    item.addEventListener('click', () => {
+      item.closest('.dropdown').classList.remove('open');
+    });
+  });
+}
+
+// ─────────────────────────────────────────────
+// THEME
+// ─────────────────────────────────────────────
+function buildThemeSelect() {
+  for (const [id, theme] of Object.entries(THEMES)) { const opt = document.createElement('option'); opt.value = id; opt.textContent = theme.name; themeSelect.appendChild(opt); }
+}
+function getActiveColors() { return customColors || THEMES[currentThemeId].colors; }
+function applyTheme(id) {
+  const colors = getActiveColors(); const root = document.documentElement;
+  for (const [key, val] of Object.entries(colors)) root.style.setProperty(`--hl-${key}`, val);
+  for (const cat of categories) { if (!colors[cat.id]) { const idx = categories.indexOf(cat); root.style.setProperty(`--hl-${cat.id}`, generateColorForTheme(THEMES[id].colors, idx)); } }
+  themeSelect.value = id;
+}
+function openThemeEditor() {
+  const container = document.getElementById('theme-color-rows'); container.innerHTML = ''; const colors = getActiveColors();
+  for (const cat of categories) {
+    const color = colors[cat.id] || getComputedStyle(document.documentElement).getPropertyValue(`--hl-${cat.id}`).trim();
+    const row = document.createElement('div'); row.className = 'color-row';
+    row.innerHTML = `<label>${cat.label}</label><input type="color" data-cat="${cat.id}" value="${color}" />`;
+    container.appendChild(row);
+  }
+  document.getElementById('theme-modal').classList.add('open');
+}
+function saveThemeEdits() {
+  const inputs = document.querySelectorAll('#theme-color-rows input[type="color"]'); customColors = {};
+  for (const [key, val] of Object.entries(THEMES[currentThemeId].colors)) customColors[key] = val;
+  inputs.forEach(input => { customColors[input.dataset.cat] = input.value; });
+  applyTheme(currentThemeId); render(); document.getElementById('theme-modal').classList.remove('open');
+  showToast('Theme customized'); saveToStorage();
+}
+
+// ─────────────────────────────────────────────
+// SETTINGS
+// ─────────────────────────────────────────────
+function openSettingsModal() {
+  document.getElementById('setting-indent-size').value = indentSize;
+  document.getElementById('setting-line-height').value = editorLineHeight;
+  document.getElementById('line-height-display').textContent = editorLineHeight.toFixed(1);
+  const fontList = document.getElementById('font-list'); fontList.innerHTML = '';
+  const allOptions = [...ALL_FONTS];
+  if (customFontName && customFontFamily) allOptions.unshift({ name: `📁 ${customFontName}`, family: customFontFamily, url: null, isCustom: true });
+  for (const font of allOptions) {
+    const btn = document.createElement('button');
+    btn.className = 'font-option' + (selectedFontFamily === font.family ? ' selected' : '');
+    btn.innerHTML = `<span class="font-check">${selectedFontFamily === font.family ? '✓' : ''}</span><span class="font-preview" style="font-family:${font.family}">${font.name}</span>`;
+    btn.addEventListener('click', () => { fontList.querySelectorAll('.font-option').forEach(b => { b.classList.remove('selected'); b.querySelector('.font-check').textContent = ''; }); btn.classList.add('selected'); btn.querySelector('.font-check').textContent = '✓'; btn._fontFamily = font.family; btn._fontName = font.name; });
+    btn._fontFamily = font.family; btn._fontName = font.name; fontList.appendChild(btn);
+  }
+  document.getElementById('custom-font-name').textContent = customFontName ? `Loaded: ${customFontName}` : '';
+  document.getElementById('settings-modal').classList.add('open');
+}
+function onFontFileSelected(e) {
+  const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
+  reader.onload = () => { loadCustomFontFromDataUrl(file.name, reader.result); document.getElementById('custom-font-name').textContent = `Loaded: ${file.name}`; showToast(`Font "${file.name}" loaded`); selectedFontFamily = customFontFamily; selectedFontName = customFontName; openSettingsModal(); };
+  reader.readAsDataURL(file); e.target.value = '';
+}
+function saveSettings() {
+  indentSize = Math.max(1, Math.min(16, parseInt(document.getElementById('setting-indent-size').value) || 4));
+  editorLineHeight = parseFloat(document.getElementById('setting-line-height').value) || 1.6;
+  const selectedBtn = document.querySelector('#font-list .font-option.selected');
+  if (selectedBtn) { selectedFontFamily = selectedBtn._fontFamily; selectedFontName = selectedBtn._fontName; }
+  applyFont(selectedFontFamily); applyLineHeight(editorLineHeight);
+  updateLineNumbers(); updateHelpContent(); updateScrollPadding(); updateIndentGuides(); render();
+  document.getElementById('settings-modal').classList.remove('open'); showToast('Settings applied'); saveToStorage();
+}
+
+// ─────  ───────────────────────────────────────
+// SIDEBAR
+// ─────────────────────────────────────────────
+function buildSidebar() {
+  const h3 = sidebar.querySelector('h3'); while (h3.nextSibling) h3.nextSibling.remove();
+  for (const cat of categories) {
+    const btn = document.createElement('button'); btn.className = 'highlight-btn'; btn.dataset.category = cat.id;
+    const sl = cat.shortcut ? `Alt+${cat.shortcut}` : '';
+    btn.innerHTML = `<span class="swatch" style="background:var(--hl-${cat.id})"></span>${cat.label}${sl ? `<span class="shortcut">${sl}</span>` : ''}`;
+    btn.addEventListener('click', () => applyHighlight(cat.id)); sidebar.appendChild(btn);
+  }
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'highlight-btn remove-btn';
+  removeBtn.innerHTML = `<span class="swatch remove-swatch">✕</span>Remove<span class="shortcut">Alt+⌫</span>`;
+  removeBtn.addEventListener('click', removeHighlight);
+  sidebar.appendChild(removeBtn);
+  const addBtn = document.createElement('button'); addBtn.className = 'highlight-btn add-category-btn'; addBtn.innerHTML = '➕ New Category';
+  addBtn.addEventListener('click', openNewCategoryModal); sidebar.appendChild(addBtn);
+}
+
+// ─────────────────────────────────────────────
+// NEW CATEGORY
+// ─────────────────────────────────────────────
+function getNextShortcut() { const used = new Set(categories.map(c => c.shortcut)); for (const s of [...DEFAULT_SHORTCUTS, ...EXTRA_SHORTCUTS]) if (!used.has(s)) return s; return null; }
+function openNewCategoryModal() { document.getElementById('new-cat-name').value = ''; document.getElementById('new-cat-bold').checked = false; document.getElementById('new-cat-italic').checked = false; updateNewCatPreview(); document.getElementById('new-cat-modal').classList.add('open'); document.getElementById('new-cat-name').focus(); }
+function updateNewCatPreview() {
+  const preview = document.getElementById('new-cat-preview'); const name = document.getElementById('new-cat-name').value.trim();
+  if (!name) { preview.innerHTML = '<span style="font-size:0.75rem;color:var(--line-num)">Enter a name to preview colors</span>'; return; }
+  const idx = categories.length; let html = '';
+  for (const [id, theme] of Object.entries(THEMES)) { const color = generateColorForTheme(theme.colors, idx); html += `<div class="preview-chip"><span class="chip-swatch" style="background:${color}"></span>${theme.name}</div>`; }
+  preview.innerHTML = html;
+}
+function addNewCategory() {
+  const nameInput = document.getElementById('new-cat-name'); const name = nameInput.value.trim();
+  if (!name) { showToast('Enter a category name'); nameInput.focus(); return; }
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  if (categories.some(c => c.id === id)) { showToast('Category already exists'); return; }
+  const bold = document.getElementById('new-cat-bold').checked; const italic = document.getElementById('new-cat-italic').checked;
+  const shortcut = getNextShortcut(); categories.push({ id, label: name, shortcut, bold, italic });
+  const idx = categories.length - 1;
+  for (const [themeId, theme] of Object.entries(THEMES)) theme.colors[id] = generateColorForTheme(theme.colors, idx);
+  if (customColors) customColors[id] = generateColorForTheme(THEMES[currentThemeId].colors, idx);
+  updateDynamicStyles(); applyTheme(currentThemeId); buildSidebar(); updateHelpContent(); saveToStorage();
+  document.getElementById('new-cat-modal').classList.remove('open'); showToast(`Added "${name}" category`);
+}
+
+// ─────────────────────────────────────────────
+// HELP
+// ─────────────────────────────────────────────
+function updateHelpContent() {
+  const el = document.getElementById('help-content');
+  const sl = categories.filter(c => c.shortcut).map(c => `<kbd>Alt+${c.shortcut}</kbd> ${c.label}`).join(' · ');
+  el.innerHTML = `<h4>Applying Highlights</h4><p>Select text, then press the shortcut or click a sidebar button:</p><p>${sl}</p><h4>Removing Highlights</h4><p><kbd>Alt+Backspace</kbd> Remove highlights from selected text</p><h4>Indentation</h4><p><kbd>Ctrl+]</kbd> Indent selected lines (${indentSize} spaces)</p><p><kbd>Ctrl+[</kbd> Outdent selected lines (${indentSize} spaces)</p><h4>Folding</h4><p>Click the ▶ arrow next to a line number to fold/unfold an indented block</p><h4>Other</h4><p><kbd>Ctrl+S</kbd> / <kbd>⌘+S</kbd> Save to browser storage</p><p><kbd>Tab</kbd> Insert ${indentSize} spaces</p><p><kbd>Enter</kbd> New line with auto-indent</p><p>You can scroll past the end of the document.</p>`;
+}
+
+// ─────────────────────────────────────────────
+// HIGHLIGHT LOGIC
+// ─────────────────────────────────────────────
+function applyHighlight(category) {
+  const start = editorEl.selectionStart, end = editorEl.selectionEnd;
+  if (start === end) { showToast('Select some text first'); return; }
+  removeOverlapping(start, end);
+  highlights.push({ start, end, category });
+  highlights.sort((a, b) => a.start - b.start);
+  render(); saveToStorage();
+  showToast(`Applied "${category}" highlight`);
+  statusLeft.textContent = `Highlighted as ${category}`;
+}
+
+function removeHighlight() {
+  const start = editorEl.selectionStart, end = editorEl.selectionEnd;
+  if (start === end) { showToast('Select text to remove highlighting'); return; }
+  const before = highlights.length;
+  removeOverlapping(start, end);
+  if (highlights.length < before) {
+    render(); saveToStorage();
+    showToast('Highlights removed');
+    statusLeft.textContent = 'Highlights removed';
+  } else {
+    showToast('No highlights in selection');
+  }
+}
+
+function removeOverlapping(start, end) {
+  highlights = highlights.filter(h => h.end <= start || h.start >= end);
+}
+
+// ─────────────────────────────────────────────
+// EDITOR INPUT
+// ─────────────────────────────────────────────
+function onEditorInput() {
+  const newText = editorEl.value;
+  adjustHighlightsOnEdit(previousText, newText);
+  recalcFoldsAfterEdit(previousText, newText);
+  previousText = newText;
+  render(); updateLineNumbers(); updateScrollPadding();
+  updateIndentGuides(); saveToStorage();
+}
+
+function adjustHighlightsOnEdit(oldText, newText) {
+  const oldLen = oldText.length, newLen = newText.length;
+  let prefixLen = 0;
+  while (prefixLen < oldLen && prefixLen < newLen && oldText[prefixLen] === newText[prefixLen]) prefixLen++;
+  let oldSuffix = oldLen, newSuffix = newLen;
+  while (oldSuffix > prefixLen && newSuffix > prefixLen && oldText[oldSuffix - 1] === newText[newSuffix - 1]) { oldSuffix--; newSuffix--; }
+  const deleteStart = prefixLen, deleteEnd = oldSuffix;
+  const insertLen = newSuffix - prefixLen;
+  const delta = insertLen - (deleteEnd - deleteStart);
+  const updated = [];
+  for (const h of highlights) {
+    const { start, end, category } = h;
+    if (end <= deleteStart) updated.push(h);
+    else if (start >= deleteEnd) updated.push({ start: start + delta, end: end + delta, category });
+    else if (start >= deleteStart && end <= deleteEnd) { /* deleted */ }
+    else if (start < deleteStart && end > deleteEnd) updated.push({ start, end: end + delta, category });
+    else if (start < deleteStart && end > deleteStart && end <= deleteEnd) updated.push({ start, end: deleteStart, category });
+    else if (start >= deleteStart && start < deleteEnd && end > deleteEnd) updated.push({ start: deleteStart + insertLen, end: end + delta, category });
+  }
+  highlights = updated.filter(h => h.end > h.start);
+}
+
+// ─────────────────────────────────────────────
+// INDENT / OUTDENT
+// ─────────────────────────────────────────────
+function indentLines() {
+  const val = editorEl.value;
+  const start = editorEl.selectionStart, end = editorEl.selectionEnd;
+  const indent = ' '.repeat(indentSize);
+  const blockStart = val.lastIndexOf('\n', start - 1) + 1;
+  const afterEnd = val.indexOf('\n', end);
+  const blockEnd = afterEnd === -1 ? val.length : afterEnd;
+  const before = val.substring(0, blockStart);
+  const block = val.substring(blockStart, blockEnd);
+  const after = val.substring(blockEnd);
+  const lines = block.split('\n');
+  const newBlock = lines.map(line => indent + line).join('\n');
+  const oldText = editorEl.value;
+  editorEl.value = before + newBlock + after;
+  editorEl.selectionStart = start + indentSize;
+  editorEl.selectionEnd = end + indentSize * lines.length;
+  adjustHighlightsOnEdit(oldText, editorEl.value);
+  recalcFoldsAfterEdit(oldText, editorEl.value);
+  previousText = editorEl.value;
+  render(); updateLineNumbers(); updateIndentGuides(); saveToStorage();
+}
+
+function outdentLines() {
+  const val = editorEl.value;
+  const start = editorEl.selectionStart, end = editorEl.selectionEnd;
+  const blockStart = val.lastIndexOf('\n', start - 1) + 1;
+  const afterEnd = val.indexOf('\n', end);
+  const blockEnd = afterEnd === -1 ? val.length : afterEnd;
+  const before = val.substring(0, blockStart);
+  const block = val.substring(blockStart, blockEnd);
+  const after = val.substring(blockEnd);
+  const lines = block.split('\n');
+  let removedFirst = 0, totalRemoved = 0, firstDone = false;
+  const newLines = lines.map(line => {
+    let removed = 0, nl = line;
+    for (let j = 0; j < indentSize && nl.length > 0 && nl[0] === ' '; j++) { nl = nl.substring(1); removed++; }
+    if (!firstDone) { removedFirst = removed; firstDone = true; }
+    totalRemoved += removed; return nl;
+  });
+  const newBlock = newLines.join('\n');
+  const oldText = editorEl.value;
+  editorEl.value = before + newBlock + after;
+  editorEl.selectionStart = Math.max(blockStart, start - removedFirst);
+  editorEl.selectionEnd = end - totalRemoved;
+  adjustHighlightsOnEdit(oldText, editorEl.value);
+  recalcFoldsAfterEdit(oldText, editorEl.value);
+  previousText = editorEl.value;
+  render(); updateLineNumbers(); updateIndentGuides(); saveToStorage();
+}
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+function render() {
+  const text = editorEl.value;
+  if (!text) { highlightLayer.innerHTML = ''; updateStatusHighlights(); return; }
+
+  const lines = text.split('\n');
+  const visibleLines = getVisibleLines(lines);
+
+  // Build a mapping from visible lines back to char offsets
+  const lineOffsets = [];
+  let offset = 0;
+  for (let i = 0; i < lines.length; i++) {
+    lineOffsets.push(offset);
+    offset += lines[i].length + 1; // +1 for \n
+  }
+
+  // Build the visible text with fold ellipses
+  let html = '';
+  for (let vi = 0; vi < visibleLines.length; vi++) {
+    const { lineIdx } = visibleLines[vi];
+    const lineStart = lineOffsets[lineIdx];
+    const lineEnd = lineStart + lines[lineIdx].length;
+
+    // Render this line with highlights
+    html += renderLineHighlights(text, lineStart, lineEnd);
+
+    // If this line has a fold, add ellipsis
+    if (isLineFolded(lineIdx)) {
+      html += '<span class="fold-ellipsis">⋯</span>';
+    }
+
+    if (vi < visibleLines.length - 1) html += '\n';
+  }
+
+  html += '\n';
+  highlightLayer.innerHTML = html;
+  updateStatusHighlights();
+}
+
+function renderLineHighlights(text, lineStart, lineEnd) {
+  const sorted = highlights
+    .filter(h => h.end > lineStart && h.start < lineEnd)
+    .sort((a, b) => a.start - b.start);
+
+  let html = '';
+  let pos = lineStart;
+
+  for (const h of sorted) {
+    const hStart = Math.max(h.start, lineStart);
+    const hEnd = Math.min(h.end, lineEnd);
+    if (hStart < pos) continue;
+    if (hStart > pos) html += escapeHtml(text.slice(pos, hStart));
+    html += `<span class="hl-${h.category}">${escapeHtml(text.slice(hStart, hEnd))}</span>`;
+    pos = hEnd;
+  }
+  if (pos < lineEnd) html += escapeHtml(text.slice(pos, lineEnd));
+  return html;
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ─────────────────────────────────────────────
+// LINE NUMBERS (with fold toggles)
+// ─────────────────────────────────────────────
+
+function updateLineNumbers() {
+  lineNumbers.innerHTML = '';
+  const lines = editorEl.value.split('\n');
+  const visibleLines = getVisibleLines(lines);
+  const foldable = getFoldableLines(lines);
+
+  // Measure actual line height from the editor
+  const editorStyles = getComputedStyle(editorEl);
+  const fontSize = parseFloat(editorStyles.fontSize);
+  const lh = fontSize * editorLineHeight;
+
+  const wrapper = document.createElement('div');
+  wrapper.style.paddingBottom = editorEl.style.paddingBottom || '0px';
+
+  for (const { lineIdx } of visibleLines) {
+    const row = document.createElement('div');
+    row.className = 'line-num-row';
+    // Force exact pixel height to match textarea
+    row.style.height = lh + 'px';
+    row.style.lineHeight = lh + 'px';
+
+    if (foldable.has(lineIdx) || isLineFolded(lineIdx)) {
+      const toggle = document.createElement('span');
+      toggle.className = 'fold-toggle';
+      toggle.textContent = isLineFolded(lineIdx) ? '▶' : '▼';
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFold(lineIdx);
+      });
+      row.appendChild(toggle);
+    }
+
+    const num = document.createElement('span');
+    num.className = 'line-num-text';
+    num.textContent = lineIdx + 1;
+    row.appendChild(num);
+    wrapper.appendChild(row);
+  }
+
+  lineNumbers.appendChild(wrapper);
+}
+
+// ─────────────────────────────────────────────
+// SCROLL SYNC
+// ─────────────────────────────────────────────
+function syncScroll() {
+  highlightLayer.scrollTop = editorEl.scrollTop;
+  highlightLayer.scrollLeft = editorEl.scrollLeft;
+  lineNumbers.scrollTop = editorEl.scrollTop;
+
+  // Move indent guides with scroll via transform
+  const container = document.getElementById('indent-guides-container');
+  if (container) {
+    container.style.transform = `translateY(${-editorEl.scrollTop}px)`;
+  }
+}
+
+// ─────────────────────────────────────────────
+// KEYBOARD SHORTCUTS
+// ─────────────────────────────────────────────
+function onKeyDown(e) {
+  // Auto-indent on Enter
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const start = editorEl.selectionStart;
+    const val = editorEl.value;
+    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+    const line = val.slice(lineStart, start);
+    const indent = line.match(/^[\t ]*/)[0];
+    const insert = '\n' + indent;
+    editorEl.value = val.substring(0, start) + insert + val.substring(editorEl.selectionEnd);
+    editorEl.selectionStart = editorEl.selectionEnd = start + insert.length;
+    onEditorInput();
+    return;
+  }
+
+  // Tab — insert spaces
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editorEl.selectionStart;
+    const end = editorEl.selectionEnd;
+    const val = editorEl.value;
+    const spaces = ' '.repeat(indentSize);
+    editorEl.value = val.substring(0, start) + spaces + val.substring(end);
+    editorEl.selectionStart = editorEl.selectionEnd = start + indentSize;
+    onEditorInput();
+    return;
+  }
+
+  // Ctrl+S / Cmd+S — save
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveToStorage();
+    showToast('Saved to browser storage');
+    return;
+  }
+
+  // Ctrl+] — indent
+  if ((e.ctrlKey || e.metaKey) && e.key === ']') {
+    e.preventDefault();
+    indentLines();
+    return;
+  }
+
+  // Ctrl+[ — outdent
+  if ((e.ctrlKey || e.metaKey) && e.key === '[') {
+    e.preventDefault();
+    outdentLines();
+    return;
+  }
+
+  // Alt shortcuts
+  if (e.altKey) {
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      removeHighlight();
+      return;
+    }
+    const shortcutMap = {};
+    for (const cat of categories) {
+      if (cat.shortcut) shortcutMap[cat.shortcut] = cat.id;
+    }
+    if (shortcutMap[e.key]) {
+      e.preventDefault();
+      applyHighlight(shortcutMap[e.key]);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// STATUS BAR
+// ─────────────────────────────────────────────
+function updateCursorStatus() {
+  const val = editorEl.value;
+  const pos = editorEl.selectionStart;
+  const lines = val.substring(0, pos).split('\n');
+  const ln = lines.length;
+  const col = lines[lines.length - 1].length + 1;
+  statusCursor.textContent = `Ln ${ln}, Col ${col}`;
+}
+
+function updateStatusHighlights() {
+  const n = highlights.length;
+  statusHighlights.textContent = `${n} highlight${n !== 1 ? 's' : ''}`;
+}
+
+// ─────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────
+let toastTimeout;
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => toastEl.classList.remove('show'), 2000);
+}
+
+// ─────────────────────────────────────────────
+// PERSISTENCE
+// ─────────────────────────────────────────────
+const BUILTIN_IDS = new Set([
+  'keyword', 'string', 'comment', 'function', 'type', 'number',
+  'operator', 'variable', 'constant', 'decorator', 'tag', 'attribute'
+]);
+
+function getThemeExtensions() {
+  const exts = {};
+  for (const [themeId, theme] of Object.entries(THEMES)) {
+    const ext = {};
+    for (const [key, val] of Object.entries(theme.colors)) {
+      if (!BUILTIN_IDS.has(key)) ext[key] = val;
+    }
+    if (Object.keys(ext).length > 0) exts[themeId] = ext;
+  }
+  return exts;
+}
+
+function saveToStorage() {
+  const data = {
+    text: editorEl.value,
+    highlights,
+    themeId: currentThemeId,
+    customColors,
+    customCategories: categories.filter(c => !BUILTIN_IDS.has(c.id)),
+    themeExtensions: getThemeExtensions(),
+    indentSize,
+    editorLineHeight,
+    selectedFontFamily,
+    selectedFontName,
+    customFontName,
+    customFontFamily,
+    customFontDataUrl,
+    foldedRegions,
+    currentUIThemeId,
+    customUIColors,
+    importedSyntaxThemes: getImportedSyntaxThemes(),
+    importedUIThemes: getImportedUIThemes(),
+  };
+  localStorage.setItem('chromatura_data', JSON.stringify(data));
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem('chromatura_data');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.text) { editorEl.value = data.text; previousText = data.text; }
+    if (data.highlights) highlights = data.highlights;
+    if (data.themeId && THEMES[data.themeId]) currentThemeId = data.themeId;
+    if (data.customColors) customColors = data.customColors;
+    if (data.indentSize) indentSize = data.indentSize;
+    if (data.editorLineHeight) editorLineHeight = data.editorLineHeight;
+    if (data.selectedFontFamily) selectedFontFamily = data.selectedFontFamily;
+    if (data.selectedFontName) selectedFontName = data.selectedFontName;
+    if (data.foldedRegions) foldedRegions = data.foldedRegions;
+    if (data.customFontDataUrl && data.customFontName) {
+      loadCustomFontFromDataUrl(data.customFontName, data.customFontDataUrl);
+      if (data.customFontFamily) customFontFamily = data.customFontFamily;
+    }
+    if (data.customCategories && data.customCategories.length > 0) {
+      for (const cat of data.customCategories) {
+        if (!categories.some(c => c.id === cat.id)) categories.push(cat);
+      }
+    }
+    if (data.themeExtensions) {
+      for (const [themeId, ext] of Object.entries(data.themeExtensions)) {
+        if (THEMES[themeId]) Object.assign(THEMES[themeId].colors, ext);
+      }
+    }
+    if (data.currentUIThemeId && UI_THEMES[data.currentUIThemeId]) {
+      currentUIThemeId = data.currentUIThemeId;
+    }
+    if (data.customUIColors) {
+      customUIColors = data.customUIColors;
+    }
+
+    // Restore imported syntax themes
+    if (data.importedSyntaxThemes) {
+      for (const [id, theme] of Object.entries(data.importedSyntaxThemes)) {
+        if (!THEMES[id]) {
+          THEMES[id] = theme;
+          const opt = document.createElement('option');
+          opt.value = id;
+          opt.textContent = theme.name;
+          themeSelect.appendChild(opt);
+        }
+      }
+    }
+
+    // Restore imported UI themes
+    if (data.importedUIThemes) {
+      for (const [id, theme] of Object.entries(data.importedUIThemes)) {
+        if (!UI_THEMES[id]) {
+          UI_THEMES[id] = theme;
+        }
+      }
+    }
+    // Apply UI theme
+    applyUITheme(customUIColors || UI_THEMES[currentUIThemeId]);
+    applyTheme(currentThemeId);
+  } catch (e) {
+    console.warn('Failed to load saved data:', e);
+  }
+}
+
+function getImportedSyntaxThemes() {
+  // Save any themes that aren't in the original THEMES list
+  const builtinIds = new Set(['catppuccin', 'monokai', 'dracula', 'solarized', 'github_dark', 'nord', 'gruvbox', 'one_dark']);
+  const imported = {};
+  for (const [id, theme] of Object.entries(THEMES)) {
+    if (!builtinIds.has(id)) {
+      imported[id] = theme;
+    }
+  }
+  return imported;
+}
+
+function getImportedUIThemes() {
+  const builtinIds = new Set(Object.keys(UI_THEMES).filter(id => !id.includes('_' + '') && UI_THEMES[id]));
+  // Simpler: just save all non-original ones
+  const originals = new Set([
+    'catppuccin_mocha', 'catppuccin_latte', 'tokyo_night', 'rose_pine',
+    'github_dimmed', 'everforest', 'kanagawa', 'solarized_dark',
+    'midnight', 'warm_dark', 'nord_ui', 'ayu_dark'
+  ]);
+  const imported = {};
+  for (const [id, theme] of Object.entries(UI_THEMES)) {
+    if (!originals.has(id)) {
+      imported[id] = theme;
+    }
+  }
+  return imported;
+}
+
+// ─────────────────────────────────────────────
+// EXPORT / IMPORT
+// ─────────────────────────────────────────────
+function exportData() {
+  const data = {
+    text: editorEl.value,
+    highlights,
+    themeId: currentThemeId,
+    customColors,
+    customCategories: categories.filter(c => !BUILTIN_IDS.has(c.id)),
+    themeExtensions: getThemeExtensions(),
+    indentSize,
+    editorLineHeight,
+    selectedFontFamily,
+    selectedFontName,
+    customFontName,
+    customFontFamily,
+    customFontDataUrl,
+    foldedRegions,
+    currentUIThemeId,
+    customUIColors,
+    exportedAt: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `chromatura-export-${Date.now()}.json`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('Exported!');
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (data.text !== undefined) { editorEl.value = data.text; previousText = data.text; }
+      if (data.highlights) highlights = data.highlights;
+      if (data.themeId && THEMES[data.themeId]) currentThemeId = data.themeId;
+      if (data.customColors) customColors = data.customColors;
+      if (data.indentSize) indentSize = data.indentSize;
+      if (data.editorLineHeight) editorLineHeight = data.editorLineHeight;
+      if (data.selectedFontFamily) selectedFontFamily = data.selectedFontFamily;
+      if (data.selectedFontName) selectedFontName = data.selectedFontName;
+      if (data.foldedRegions) foldedRegions = data.foldedRegions;
+      if (data.customFontDataUrl && data.customFontName) {
+        loadCustomFontFromDataUrl(data.customFontName, data.customFontDataUrl);
+        if (data.customFontFamily) customFontFamily = data.customFontFamily;
+      }
+      if (data.customCategories) {
+        for (const cat of data.customCategories) {
+          if (!categories.some(c => c.id === cat.id)) categories.push(cat);
+        }
+      }
+      if (data.themeExtensions) {
+        for (const [themeId, ext] of Object.entries(data.themeExtensions)) {
+          if (THEMES[themeId]) Object.assign(THEMES[themeId].colors, ext);
+        }
+      }
+
+      // Restore UI theme
+      if (data.currentUIThemeId && UI_THEMES[data.currentUIThemeId]) {
+        currentUIThemeId = data.currentUIThemeId;
+      }
+      if (data.customUIColors) {
+        customUIColors = data.customUIColors;
+      }
+      applyUITheme(customUIColors || UI_THEMES[currentUIThemeId]);
+
+      updateDynamicStyles(); applyTheme(currentThemeId);
+      applyFont(selectedFontFamily); applyLineHeight(editorLineHeight);
+      buildSidebar(); render(); updateLineNumbers();
+      updateHelpContent(); updateScrollPadding();
+      updateIndentGuides(); saveToStorage();
+      showToast('Imported successfully!');
+    } catch (err) {
+      showToast('Invalid file format');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ─────────────────────────────────────────────
+// EXPORT TO IMAGE
+// ─────────────────────────────────────────────
+
+function openExportImageModal() {
+  // Populate theme select
+  const sel = document.getElementById('img-export-theme');
+  sel.innerHTML = '';
+  for (const [id, theme] of Object.entries(THEMES)) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = theme.name;
+    if (id === currentThemeId) opt.selected = true;
+    sel.appendChild(opt);
+  }
+
+  const totalLines = editorEl.value.split('\n').length;
+  document.getElementById('img-lines-per').value = totalLines;
+  document.getElementById('img-all-lines').checked = true;
+  document.getElementById('img-lines-per').disabled = true;
+  updateImgPageInfo();
+  updateImgPreview();
+
+  document.getElementById('export-img-modal').classList.add('open');
+}
+
+function updateImgPageInfo() {
+  const totalLines = editorEl.value.split('\n').length;
+  const allLines = document.getElementById('img-all-lines').checked;
+  const linesPerInput = document.getElementById('img-lines-per');
+  const info = document.getElementById('img-page-info');
+
+  if (allLines) {
+    linesPerInput.disabled = true;
+    info.textContent = `${totalLines} lines → 1 image`;
+  } else {
+    linesPerInput.disabled = false;
+    const linesPerPage = Math.max(1, parseInt(linesPerInput.value) || totalLines);
+    const pages = Math.ceil(totalLines / linesPerPage);
+    info.textContent = `${totalLines} lines ÷ ${linesPerPage} per image → ${pages} image${pages > 1 ? 's' : ''}`;
+  }
+}
+
+function updateImgPreview() {
+  const preview = document.getElementById('img-preview');
+  preview.innerHTML = '';
+
+  const lines = editorEl.value.split('\n');
+  // Show first few lines as a mini preview
+  const previewLines = lines.slice(0, Math.min(8, lines.length));
+  const canvas = renderCodeToCanvas(previewLines, 0, {
+    scale: 1,
+    padding: parseInt(document.getElementById('img-padding').value) || 32,
+    showLineNumbers: document.getElementById('img-line-numbers').checked,
+    themeId: document.getElementById('img-export-theme').value,
+    maxWidth: 460,
+  });
+  preview.appendChild(canvas);
+}
+
+function getThemeColors(themeId) {
+  if (customColors && themeId === currentThemeId) return { ...customColors };
+  const base = { ...THEMES[themeId].colors };
+  // Include any custom category colors
+  for (const cat of categories) {
+    if (!base[cat.id]) {
+      base[cat.id] = generateColorForTheme(THEMES[themeId].colors, categories.indexOf(cat));
+    }
+  }
+  return base;
+}
+
+function measureTextWidth(ctx, text) {
+  return ctx.measureText(text).width;
+}
+
+function renderCodeToCanvas(lines, startLineIdx, opts) {
+  const {
+    scale = 2,
+    padding = 32,
+    showLineNumbers = true,
+    themeId = currentThemeId,
+    maxWidth = null,
+  } = opts;
+
+  const colors = getThemeColors(themeId);
+  const bgColor = '#181825'; // editor bg
+  const fgColor = '#cdd6f4'; // editor fg
+  const lineNumColor = '#6c7086';
+
+  // Create a temp canvas to measure
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d');
+
+  // Get the current font
+  const fontFamily = selectedFontFamily || "'JetBrains Mono', monospace";
+  const baseFontSize = 14; // px at 1x
+  const fontSize = baseFontSize * scale;
+  const lineHeight = fontSize * editorLineHeight;
+
+  tempCtx.font = `${fontSize}px ${fontFamily}`;
+
+  // Calculate line number width
+  const maxLineNum = startLineIdx + lines.length;
+  const lineNumStr = String(maxLineNum);
+  const lineNumWidth = showLineNumbers
+    ? measureTextWidth(tempCtx, lineNumStr) + 24 * scale
+    : 0;
+
+  // Calculate content width (measure all lines)
+  let maxContentWidth = 0;
+  for (const line of lines) {
+    const w = measureTextWidth(tempCtx, line || ' ');
+    if (w > maxContentWidth) maxContentWidth = w;
+  }
+
+  const contentWidth = lineNumWidth + maxContentWidth + padding * 2 * scale;
+  let canvasWidth = contentWidth;
+
+  if (maxWidth) {
+    canvasWidth = Math.min(canvasWidth, maxWidth * scale);
+  }
+
+  const canvasHeight = lines.length * lineHeight + padding * 2 * scale;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  // Optional: rounded rect clip for nicer look
+  const radius = 8 * scale;
+  ctx.beginPath();
+  ctx.moveTo(radius, 0);
+  ctx.lineTo(canvasWidth - radius, 0);
+  ctx.quadraticCurveTo(canvasWidth, 0, canvasWidth, radius);
+  ctx.lineTo(canvasWidth, canvasHeight - radius);
+  ctx.quadraticCurveTo(canvasWidth, canvasHeight, canvasWidth - radius, canvasHeight);
+  ctx.lineTo(radius, canvasHeight);
+  ctx.quadraticCurveTo(0, canvasHeight, 0, canvasHeight - radius);
+  ctx.lineTo(0, radius);
+  ctx.quadraticCurveTo(0, 0, radius, 0);
+  ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  const padX = padding * scale;
+  const padY = padding * scale;
+
+  // Compute character offsets for the full text so we can map highlights
+  const fullText = editorEl.value;
+  const allLines = fullText.split('\n');
+  const lineOffsets = [];
+  let off = 0;
+  for (let i = 0; i < allLines.length; i++) {
+    lineOffsets.push(off);
+    off += allLines[i].length + 1;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const actualLineIdx = startLineIdx + i;
+    const y = padY + i * lineHeight + fontSize * 0.8; // baseline
+
+    // Line number
+    if (showLineNumbers) {
+      ctx.font = `${fontSize}px ${fontFamily}`;
+      ctx.fillStyle = lineNumColor;
+      const numText = String(actualLineIdx + 1);
+      const numWidth = measureTextWidth(ctx, numText);
+      ctx.fillText(numText, padX + lineNumWidth - numWidth - 12 * scale, y);
+    }
+
+    // Line content with highlights
+    const lineText = lines[i];
+    const lineStart = lineOffsets[actualLineIdx];
+    const lineEnd = lineStart + lineText.length;
+    const x0 = padX + lineNumWidth;
+
+    // Gather highlights for this line
+    const lineHighlights = highlights
+      .filter(h => h.end > lineStart && h.start < lineEnd)
+      .sort((a, b) => a.start - b.start);
+
+    let charX = x0;
+    let pos = lineStart;
+
+    for (const h of lineHighlights) {
+      const hStart = Math.max(h.start, lineStart);
+      const hEnd = Math.min(h.end, lineEnd);
+
+      // Draw unhighlighted text before this highlight
+      if (hStart > pos) {
+        const segment = fullText.slice(pos, hStart);
+        ctx.font = `${fontSize}px ${fontFamily}`;
+        ctx.fillStyle = fgColor;
+        ctx.fillText(segment, charX, y);
+        charX += measureTextWidth(ctx, segment);
+      }
+
+      // Draw highlighted text
+      const segment = fullText.slice(hStart, hEnd);
+      const cat = categories.find(c => c.id === h.category);
+      const color = colors[h.category] || fgColor;
+
+      let fontStyle = '';
+      if (cat && cat.bold && cat.italic) fontStyle = 'bold italic ';
+      else if (cat && cat.bold) fontStyle = 'bold ';
+      else if (cat && cat.italic) fontStyle = 'italic ';
+
+      ctx.font = `${fontStyle}${fontSize}px ${fontFamily}`;
+      ctx.fillStyle = color;
+      ctx.fillText(segment, charX, y);
+      charX += measureTextWidth(ctx, segment);
+      pos = hEnd;
+    }
+
+    // Draw remaining unhighlighted text
+    if (pos < lineEnd) {
+      const segment = fullText.slice(pos, lineEnd);
+      ctx.font = `${fontSize}px ${fontFamily}`;
+      ctx.fillStyle = fgColor;
+      ctx.fillText(segment, charX, y);
+    }
+  }
+
+  return canvas;
+}
+
+async function doExportImages() {
+  const allLines = editorEl.value.split('\n');
+  const totalLines = allLines.length;
+  const useAllLines = document.getElementById('img-all-lines').checked;
+  const linesPerPage = useAllLines ? totalLines : Math.max(1, parseInt(document.getElementById('img-lines-per').value) || totalLines);
+  const scale = parseInt(document.getElementById('img-scale').value) || 2;
+  const padding = parseInt(document.getElementById('img-padding').value) || 32;
+  const showLineNumbers = document.getElementById('img-line-numbers').checked;
+  const themeId = document.getElementById('img-export-theme').value;
+
+  const pages = Math.ceil(totalLines / linesPerPage);
+
+  document.getElementById('export-img-modal').classList.remove('open');
+
+  // Show progress for multiple images
+  let progressEl = null;
+  if (pages > 1) {
+    progressEl = document.createElement('div');
+    progressEl.className = 'img-export-progress';
+    progressEl.textContent = `Exporting image 1 of ${pages}...`;
+    document.body.appendChild(progressEl);
+  }
+
+  for (let page = 0; page < pages; page++) {
+    if (progressEl) {
+      progressEl.textContent = `Exporting image ${page + 1} of ${pages}...`;
+    }
+
+    const startLine = page * linesPerPage;
+    const endLine = Math.min(startLine + linesPerPage, totalLines);
+    const pageLines = allLines.slice(startLine, endLine);
+
+    const canvas = renderCodeToCanvas(pageLines, startLine, {
+      scale,
+      padding,
+      showLineNumbers,
+      themeId,
+    });
+
+    // Convert to blob and download
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const suffix = pages > 1 ? `-part${page + 1}` : '';
+    a.download = `chromatura${suffix}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    // Small delay between downloads so browser doesn't block them
+    if (pages > 1) {
+      await new Promise(r => setTimeout(r, 300));
+    }
+  }
+
+  if (progressEl) {
+    progressEl.textContent = `Exported ${pages} images!`;
+    setTimeout(() => progressEl.remove(), 2000);
+  } else {
+    showToast('Image exported!');
+  }
+}
+
+// ─────────────────────────────────────────────
+// UI THEMES
+// ─────────────────────────────────────────────
+const UI_THEMES = {
+  catppuccin_mocha: {
+    name: 'Catppuccin Mocha',
+    bg: '#1e1e2e', editorBg: '#181825', fg: '#cdd6f4',
+    accent: '#cba6f7', toolbar: '#313244', border: '#45475a',
+    buttonBg: '#45475a', buttonHover: '#585b70', lineNum: '#6c7086',
+    scrollThumb: '#45475a', selection: 'rgba(203, 166, 247, 0.25)',
+    accentHover: '#b4befe',
+  },
+  catppuccin_latte: {
+    name: 'Catppuccin Latte',
+    bg: '#eff1f5', editorBg: '#e6e9ef', fg: '#4c4f69',
+    accent: '#8839ef', toolbar: '#ccd0da', border: '#bcc0cc',
+    buttonBg: '#bcc0cc', buttonHover: '#acb0be', lineNum: '#9ca0b0',
+    scrollThumb: '#acb0be', selection: 'rgba(136, 57, 239, 0.2)',
+    accentHover: '#7287fd',
+  },
+  tokyo_night: {
+    name: 'Tokyo Night',
+    bg: '#1a1b26', editorBg: '#16161e', fg: '#a9b1d6',
+    accent: '#7aa2f7', toolbar: '#24283b', border: '#3b4261',
+    buttonBg: '#3b4261', buttonHover: '#414868', lineNum: '#565f89',
+    scrollThumb: '#3b4261', selection: 'rgba(122, 162, 247, 0.25)',
+    accentHover: '#89ddff',
+  },
+  rose_pine: {
+    name: 'Rosé Pine',
+    bg: '#191724', editorBg: '#1f1d2e', fg: '#e0def4',
+    accent: '#c4a7e7', toolbar: '#26233a', border: '#403d52',
+    buttonBg: '#403d52', buttonHover: '#524f67', lineNum: '#6e6a86',
+    scrollThumb: '#403d52', selection: 'rgba(196, 167, 231, 0.25)',
+    accentHover: '#f6c177',
+  },
+  github_dimmed: {
+    name: 'GitHub Dimmed',
+    bg: '#22272e', editorBg: '#1c2128', fg: '#adbac7',
+    accent: '#539bf5', toolbar: '#2d333b', border: '#444c56',
+    buttonBg: '#444c56', buttonHover: '#545d68', lineNum: '#768390',
+    scrollThumb: '#444c56', selection: 'rgba(83, 155, 245, 0.25)',
+    accentHover: '#6cb6ff',
+  },
+  everforest: {
+    name: 'Everforest',
+    bg: '#2d353b', editorBg: '#272e33', fg: '#d3c6aa',
+    accent: '#a7c080', toolbar: '#343f44', border: '#475258',
+    buttonBg: '#475258', buttonHover: '#56635a', lineNum: '#859289',
+    scrollThumb: '#475258', selection: 'rgba(167, 192, 128, 0.25)',
+    accentHover: '#83c092',
+  },
+  kanagawa: {
+    name: 'Kanagawa',
+    bg: '#1f1f28', editorBg: '#16161d', fg: '#dcd7ba',
+    accent: '#7e9cd8', toolbar: '#2a2a37', border: '#363646',
+    buttonBg: '#363646', buttonHover: '#54546d', lineNum: '#727169',
+    scrollThumb: '#363646', selection: 'rgba(126, 156, 216, 0.25)',
+    accentHover: '#957fb8',
+  },
+  solarized_dark: {
+    name: 'Solarized Dark',
+    bg: '#002b36', editorBg: '#073642', fg: '#839496',
+    accent: '#268bd2', toolbar: '#073642', border: '#586e75',
+    buttonBg: '#586e75', buttonHover: '#657b83', lineNum: '#586e75',
+    scrollThumb: '#586e75', selection: 'rgba(38, 139, 210, 0.25)',
+    accentHover: '#2aa198',
+  },
+  midnight: {
+    name: 'Midnight Blue',
+    bg: '#0d1117', editorBg: '#010409', fg: '#c9d1d9',
+    accent: '#58a6ff', toolbar: '#161b22', border: '#30363d',
+    buttonBg: '#21262d', buttonHover: '#30363d', lineNum: '#484f58',
+    scrollThumb: '#30363d', selection: 'rgba(88, 166, 255, 0.25)',
+    accentHover: '#79c0ff',
+  },
+  warm_dark: {
+    name: 'Warm Dark',
+    bg: '#1a1410', editorBg: '#15110d', fg: '#d4c4a8',
+    accent: '#e6a855', toolbar: '#2a2118', border: '#3d3228',
+    buttonBg: '#3d3228', buttonHover: '#4d4238', lineNum: '#7a6e5d',
+    scrollThumb: '#3d3228', selection: 'rgba(230, 168, 85, 0.25)',
+    accentHover: '#f0c070',
+  },
+  nord_ui: {
+    name: 'Nord',
+    bg: '#2e3440', editorBg: '#242933', fg: '#d8dee9',
+    accent: '#88c0d0', toolbar: '#3b4252', border: '#4c566a',
+    buttonBg: '#4c566a', buttonHover: '#5e6779', lineNum: '#616e88',
+    scrollThumb: '#4c566a', selection: 'rgba(136, 192, 208, 0.25)',
+    accentHover: '#81a1c1',
+  },
+  ayu_dark: {
+    name: 'Ayu Dark',
+    bg: '#0b0e14', editorBg: '#0d1017', fg: '#bfbdb6',
+    accent: '#e6b450', toolbar: '#15191e', border: '#1c2028',
+    buttonBg: '#1c2028', buttonHover: '#262b34', lineNum: '#565b66',
+    scrollThumb: '#1c2028', selection: 'rgba(230, 180, 80, 0.2)',
+    accentHover: '#ffb454',
+  },
+};
+
+let currentUIThemeId = 'catppuccin_mocha';
+let customUIColors = null;
+
+function applyUITheme(theme) {
+  const root = document.documentElement;
+  root.style.setProperty('--bg', theme.bg);
+  root.style.setProperty('--editor-bg', theme.editorBg);
+  root.style.setProperty('--editor-fg', theme.fg);
+  root.style.setProperty('--accent', theme.accent);
+  root.style.setProperty('--accent-hover', theme.accentHover || theme.accent);
+  root.style.setProperty('--toolbar-bg', theme.toolbar);
+  root.style.setProperty('--toolbar-border', theme.border);
+  root.style.setProperty('--button-bg', theme.buttonBg);
+  root.style.setProperty('--button-fg', theme.fg);
+  root.style.setProperty('--button-hover', theme.buttonHover);
+  root.style.setProperty('--line-num', theme.lineNum);
+  root.style.setProperty('--scrollbar-thumb', theme.scrollThumb);
+  root.style.setProperty('--scrollbar-track', theme.editorBg);
+  root.style.setProperty('--selection', theme.selection);
+  root.style.setProperty('--indent-guide-active-color', theme.accent.replace(')', ', 0.35)').replace('rgb', 'rgba').replace('#', ''));
+
+  // Better active guide color from accent
+  const accentForGuide = theme.accent;
+  root.style.setProperty('--indent-guide-active-color', hexToRgba(accentForGuide, 0.35));
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function openUIThemeModal() {
+  const grid = document.getElementById('ui-theme-grid');
+  grid.innerHTML = '';
+
+  for (const [id, theme] of Object.entries(UI_THEMES)) {
+    const card = document.createElement('div');
+    card.className = 'ui-theme-card' + (id === currentUIThemeId && !customUIColors ? ' active' : '');
+    card.innerHTML = `
+      <div class="ui-preview">
+        <div class="ui-preview-sidebar" style="background:${theme.toolbar};border-right:1px solid ${theme.border};"></div>
+        <div class="ui-preview-editor" style="background:${theme.editorBg};">
+          <div class="ui-preview-line" style="background:${theme.accent};"></div>
+          <div class="ui-preview-line" style="background:${theme.fg};opacity:0.5;"></div>
+          <div class="ui-preview-line" style="background:${theme.accent};opacity:0.7;"></div>
+        </div>
+      </div>
+      <div class="ui-preview-statusbar" style="background:${theme.accent};"></div>
+      <div class="ui-theme-label">${theme.name}</div>
+    `;
+    card.addEventListener('click', () => {
+      currentUIThemeId = id;
+      customUIColors = null;
+      applyUITheme(theme);
+      // Update active state
+      grid.querySelectorAll('.ui-theme-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      // Update color pickers
+      fillUIColorPickers(theme);
+      saveToStorage();
+    });
+    grid.appendChild(card);
+  }
+
+  // Fill color pickers with current values
+  const active = customUIColors || UI_THEMES[currentUIThemeId];
+  fillUIColorPickers(active);
+
+  document.getElementById('ui-theme-modal').classList.add('open');
+}
+
+function fillUIColorPickers(theme) {
+  document.getElementById('ui-color-bg').value = theme.bg;
+  document.getElementById('ui-color-editor-bg').value = theme.editorBg;
+  document.getElementById('ui-color-fg').value = theme.fg;
+  document.getElementById('ui-color-accent').value = theme.accent;
+  document.getElementById('ui-color-toolbar').value = theme.toolbar;
+  document.getElementById('ui-color-border').value = theme.border;
+}
+
+function applyCustomUITheme() {
+  const bg = document.getElementById('ui-color-bg').value;
+  const editorBg = document.getElementById('ui-color-editor-bg').value;
+  const fg = document.getElementById('ui-color-fg').value;
+  const accent = document.getElementById('ui-color-accent').value;
+  const toolbar = document.getElementById('ui-color-toolbar').value;
+  const border = document.getElementById('ui-color-border').value;
+
+  // Derive other colors
+  const buttonBg = border;
+  const buttonHover = lightenHex(border, 15);
+  const lineNum = blendHex(fg, editorBg, 0.45);
+  const scrollThumb = border;
+  const selection = hexToRgba(accent, 0.25);
+  const accentHover = lightenHex(accent, 15);
+
+  customUIColors = {
+    bg, editorBg, fg, accent, toolbar, border,
+    buttonBg, buttonHover, lineNum, scrollThumb, selection, accentHover,
+  };
+
+  applyUITheme(customUIColors);
+  document.getElementById('ui-theme-modal').classList.remove('open');
+  showToast('UI theme applied');
+  saveToStorage();
+}
+
+function lightenHex(hex, amount) {
+  let [h, s, l] = hexToHSL(hex);
+  l = Math.min(100, l + amount);
+  return hslToHex(h, s, l);
+}
+
+function blendHex(hex1, hex2, ratio) {
+  const r1 = parseInt(hex1.slice(1, 3), 16), g1 = parseInt(hex1.slice(3, 5), 16), b1 = parseInt(hex1.slice(5, 7), 16);
+  const r2 = parseInt(hex2.slice(1, 3), 16), g2 = parseInt(hex2.slice(3, 5), 16), b2 = parseInt(hex2.slice(5, 7), 16);
+  const r = Math.round(r1 * ratio + r2 * (1 - ratio));
+  const g = Math.round(g1 * ratio + g2 * (1 - ratio));
+  const b = Math.round(b1 * ratio + b2 * (1 - ratio));
+  const toHex = x => x.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+// ─────────────────────────────────────────────
+// THEME IMPORT / EXPORT
+// ─────────────────────────────────────────────
+
+// ── Syntax Theme Export ──
+function exportSyntaxTheme() {
+  const colors = getActiveColors();
+  // Include all categories (built-in + custom)
+  const allColors = {};
+  for (const cat of categories) {
+    allColors[cat.id] = colors[cat.id] ||
+      getComputedStyle(document.documentElement).getPropertyValue(`--hl-${cat.id}`).trim();
+  }
+
+  const name = THEMES[currentThemeId].name + ' (custom)';
+  openExportThemeModal('syntax', name, allColors);
+}
+
+// ── UI Theme Export ──
+function exportUITheme() {
+  const theme = customUIColors || UI_THEMES[currentUIThemeId];
+  const name = customUIColors ? 'Custom UI Theme' : UI_THEMES[currentUIThemeId].name;
+  openExportThemeModal('ui', name, theme);
+}
+
+function openExportThemeModal(type, defaultName, data) {
+  document.getElementById('export-theme-title').textContent =
+    type === 'syntax' ? 'Export Syntax Theme' : 'Export UI Theme';
+  document.getElementById('export-theme-name').value = defaultName;
+
+  const preview = document.getElementById('export-theme-preview');
+  preview.innerHTML = '';
+
+  const container = document.createElement('div');
+  container.className = 'imported-theme-preview';
+
+  if (type === 'syntax') {
+    container.innerHTML = `<h4>Syntax Colors</h4><div class="theme-color-grid"></div>`;
+    const grid = container.querySelector('.theme-color-grid');
+    for (const [key, val] of Object.entries(data)) {
+      grid.innerHTML += `<div class="theme-color-chip"><span class="chip-dot" style="background:${val}"></span>${key}</div>`;
+    }
+  } else {
+    container.innerHTML = `<h4>UI Colors</h4><div class="theme-color-grid"></div>`;
+    const grid = container.querySelector('.theme-color-grid');
+    const labels = { bg: 'Background', editorBg: 'Editor', fg: 'Text', accent: 'Accent', toolbar: 'Toolbar', border: 'Border' };
+    for (const [key, label] of Object.entries(labels)) {
+      if (data[key]) {
+        grid.innerHTML += `<div class="theme-color-chip"><span class="chip-dot" style="background:${data[key]}"></span>${label}</div>`;
+      }
+    }
+  }
+
+  preview.appendChild(container);
+
+  // Store export context
+  document.getElementById('export-theme-modal')._exportType = type;
+  document.getElementById('export-theme-modal')._exportData = data;
+  document.getElementById('export-theme-modal').classList.add('open');
+}
+
+function doExportTheme() {
+  const modal = document.getElementById('export-theme-modal');
+  const type = modal._exportType;
+  const data = modal._exportData;
+  const name = document.getElementById('export-theme-name').value.trim() || 'Untitled Theme';
+
+  const exportObj = {
+    chromatura_theme: true,
+    type, // 'syntax' or 'ui'
+    name,
+    data,
+    exportedAt: new Date().toISOString(),
+  };
+
+  const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  a.download = `chromatura-${type}-theme-${safeName}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  modal.classList.remove('open');
+  showToast(`${type === 'syntax' ? 'Syntax' : 'UI'} theme exported!`);
+}
+
+// ── Syntax Theme Import ──
+function importSyntaxTheme(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+
+      // Support both dedicated theme files and raw color objects
+      let colors, name;
+      if (data.chromatura_theme && data.type === 'syntax') {
+        colors = data.data;
+        name = data.name;
+      } else if (data.colors || data.keyword) {
+        // Raw color object or { colors: {...} }
+        colors = data.colors || data;
+        name = data.name || file.name.replace(/\.json$/, '');
+      } else {
+        showToast('Not a valid syntax theme file');
+        return;
+      }
+
+      // Validate: must have at least some color keys
+      const validKeys = new Set([...categories.map(c => c.id)]);
+      const colorEntries = Object.entries(colors).filter(([k]) => validKeys.has(k) || /^#[0-9a-fA-F]{6}$/.test(colors[k]));
+      if (colorEntries.length === 0) {
+        showToast('No valid colors found in theme');
+        return;
+      }
+
+      // Generate a unique theme ID
+      const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') + '_' + Date.now();
+
+      // Add to THEMES
+      THEMES[id] = {
+        name,
+        colors: { ...THEMES[currentThemeId].colors, ...colors },
+      };
+
+      // Add to theme select
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = name;
+      themeSelect.appendChild(opt);
+
+      // Switch to it
+      currentThemeId = id;
+      customColors = null;
+      themeSelect.value = id;
+      applyTheme(id);
+      render();
+      saveToStorage();
+
+      showToast(`Imported syntax theme "${name}"`);
+    } catch (err) {
+      showToast('Invalid theme file');
+      console.warn('Theme import error:', err);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ── UI Theme Import ──
+function importUITheme(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+
+      let theme, name;
+      if (data.chromatura_theme && data.type === 'ui') {
+        theme = data.data;
+        name = data.name;
+      } else if (data.bg && data.fg && data.accent) {
+        // Raw UI theme object
+        theme = data;
+        name = data.name || file.name.replace(/\.json$/, '');
+      } else {
+        showToast('Not a valid UI theme file');
+        return;
+      }
+
+      // Ensure all required fields exist, derive missing ones
+      const complete = {
+        bg: theme.bg || '#1e1e2e',
+        editorBg: theme.editorBg || theme.bg || '#181825',
+        fg: theme.fg || '#cdd6f4',
+        accent: theme.accent || '#cba6f7',
+        toolbar: theme.toolbar || theme.bg || '#313244',
+        border: theme.border || '#45475a',
+        buttonBg: theme.buttonBg || theme.border || '#45475a',
+        buttonHover: theme.buttonHover || lightenHex(theme.border || '#45475a', 15),
+        lineNum: theme.lineNum || blendHex(theme.fg || '#cdd6f4', theme.editorBg || '#181825', 0.45),
+        scrollThumb: theme.scrollThumb || theme.border || '#45475a',
+        selection: theme.selection || hexToRgba(theme.accent || '#cba6f7', 0.25),
+        accentHover: theme.accentHover || lightenHex(theme.accent || '#cba6f7', 15),
+      };
+
+      // Generate a unique ID
+      const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') + '_' + Date.now();
+
+      // Add to UI_THEMES
+      UI_THEMES[id] = { name, ...complete };
+
+      // Apply it
+      currentUIThemeId = id;
+      customUIColors = null;
+      applyUITheme(UI_THEMES[id]);
+      saveToStorage();
+
+      showToast(`Imported UI theme "${name}"`);
+    } catch (err) {
+      showToast('Invalid theme file');
+      console.warn('UI theme import error:', err);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ─────────────────────────────────────────────
+// GO
+// ─────────────────────────────────────────────
+init();
