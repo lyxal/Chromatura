@@ -455,6 +455,9 @@ function init() {
       item.closest('.dropdown').classList.remove('open');
     });
   });
+
+  document.getElementById('btn-random-syntax-theme').addEventListener('click', applyRandomSyntaxTheme);
+  document.getElementById('btn-random-ui-theme').addEventListener('click', applyRandomUITheme);
 }
 
 // ─────────────────────────────────────────────
@@ -1878,6 +1881,145 @@ function importUITheme(e) {
   };
   reader.readAsText(file);
   e.target.value = '';
+}
+
+// ─────────────────────────────────────────────
+// RANDOM THEME GENERATION
+// ─────────────────────────────────────────────
+
+function randomInRange(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function randomInt(min, max) {
+  return Math.floor(randomInRange(min, max + 1));
+}
+
+function generateRandomSyntaxTheme() {
+  // Pick a base hue and generate a harmonious palette
+  const baseHue = randomInt(0, 359);
+  const strategy = randomInt(0, 3); // 0=analogous, 1=triadic, 2=complementary, 3=rainbow
+
+  function hueForIndex(i, total) {
+    switch (strategy) {
+      case 0: // Analogous — clustered hues with some spread
+        return (baseHue + (i / total) * 90 - 45 + randomInt(-10, 10)) % 360;
+      case 1: // Triadic — three main hue families
+        return (baseHue + (i % 3) * 120 + randomInt(-20, 20)) % 360;
+      case 2: // Complementary — two hue families
+        return (baseHue + (i % 2) * 180 + randomInt(-25, 25)) % 360;
+      case 3: // Rainbow — evenly distributed
+        return (baseHue + (i / total) * 360 + randomInt(-10, 10)) % 360;
+      default:
+        return (baseHue + i * 30) % 360;
+    }
+  }
+
+  const satRange = [55, 85];
+  const lightRange = [55, 80];
+
+  const keys = categories.map(c => c.id);
+  const colors = {};
+
+  for (let i = 0; i < keys.length; i++) {
+    const h = (hueForIndex(i, keys.length) + 360) % 360;
+    const s = randomInRange(satRange[0], satRange[1]);
+    const l = randomInRange(lightRange[0], lightRange[1]);
+    colors[keys[i]] = hslToHex(h, s, l);
+  }
+
+  // Ensure comment is desaturated and dimmer
+  const commentH = randomInt(0, 359);
+  colors['comment'] = hslToHex(commentH, randomInRange(5, 20), randomInRange(35, 50));
+
+  return colors;
+}
+
+function applyRandomSyntaxTheme() {
+  const colors = generateRandomSyntaxTheme();
+  const strategyNames = ['Analogous', 'Triadic', 'Complementary', 'Rainbow'];
+
+  // Find which strategy was used by regenerating — or just pick a name
+  const name = `Random ${Date.now().toString(36).slice(-4).toUpperCase()}`;
+  const id = 'random_' + Date.now();
+
+  THEMES[id] = { name, colors };
+
+  // Add to select
+  const opt = document.createElement('option');
+  opt.value = id;
+  opt.textContent = '🎲 ' + name;
+  themeSelect.appendChild(opt);
+
+  // Apply
+  currentThemeId = id;
+  customColors = null;
+  themeSelect.value = id;
+  applyTheme(id);
+  render();
+  saveToStorage();
+
+  showToast(`Generated syntax theme "${name}"`);
+}
+
+function generateRandomUITheme() {
+  // Decide light or dark (80% dark, 20% light)
+  const isLight = Math.random() < 0.2;
+
+  // Pick a base accent hue
+  const accentHue = randomInt(0, 359);
+  const accentSat = randomInRange(50, 90);
+  const accentLight = isLight ? randomInRange(40, 55) : randomInRange(55, 75);
+  const accent = hslToHex(accentHue, accentSat, accentLight);
+
+  // Background hue — either neutral or slightly tinted toward accent
+  const bgTint = Math.random() < 0.5;
+  const bgHue = bgTint ? accentHue + randomInt(-15, 15) : randomInt(0, 359);
+  const bgSat = bgTint ? randomInRange(5, 20) : randomInRange(0, 8);
+
+  let bg, editorBg, fg, toolbar, border;
+
+  if (isLight) {
+    const bgLight = randomInRange(92, 97);
+    bg = hslToHex(bgHue, bgSat, bgLight);
+    editorBg = hslToHex(bgHue, bgSat, bgLight - randomInRange(2, 5));
+    fg = hslToHex(bgHue, randomInRange(10, 30), randomInRange(15, 30));
+    toolbar = hslToHex(bgHue, bgSat, bgLight - randomInRange(5, 10));
+    border = hslToHex(bgHue, bgSat, bgLight - randomInRange(12, 20));
+  } else {
+    const bgLight = randomInRange(5, 15);
+    bg = hslToHex(bgHue, bgSat, bgLight);
+    editorBg = hslToHex(bgHue, bgSat, bgLight - randomInRange(1, 4));
+    fg = hslToHex(bgHue, randomInRange(5, 20), randomInRange(75, 90));
+    toolbar = hslToHex(bgHue, bgSat, bgLight + randomInRange(4, 10));
+    border = hslToHex(bgHue, bgSat, bgLight + randomInRange(10, 20));
+  }
+
+  const buttonBg = border;
+  const buttonHover = lightenHex(border, isLight ? -8 : 12);
+  const lineNum = blendHex(fg, editorBg, 0.45);
+  const scrollThumb = border;
+  const selection = hexToRgba(accent, 0.25);
+  const accentHover = lightenHex(accent, isLight ? -10 : 12);
+
+  return {
+    bg, editorBg, fg, accent, toolbar, border,
+    buttonBg, buttonHover, lineNum, scrollThumb, selection, accentHover,
+  };
+}
+
+function applyRandomUITheme() {
+  const theme = generateRandomUITheme();
+  const name = `Random UI ${Date.now().toString(36).slice(-4).toUpperCase()}`;
+  const id = 'random_ui_' + Date.now();
+
+  UI_THEMES[id] = { name, ...theme };
+  currentUIThemeId = id;
+  customUIColors = null;
+  applyUITheme(theme);
+  saveToStorage();
+
+  showToast(`Generated UI theme "${name}"`);
 }
 
 // ─────────────────────────────────────────────
