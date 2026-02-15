@@ -14,7 +14,7 @@
     <div class="logo">Chromatura <span>— manual syntax highlighter</span></div>
     <div class="controls">
 
-           <!-- Theme Menu -->
+      <!-- Theme Menu -->
       <div class="dropdown">
         <button class="dropdown-trigger">🎨 Theme ▾</button>
         <div class="dropdown-menu">
@@ -29,6 +29,8 @@
           <button class="dropdown-item" id="btn-ui-theme">🎭 UI Theme</button>
           <button class="dropdown-item" id="btn-import-ui-theme">📥 Import UI Theme</button>
           <button class="dropdown-item" id="btn-random-ui-theme">🎲 Random UI Theme</button>
+          <hr class="dropdown-divider" />
+          <button class="dropdown-item" id="btn-manage-themes">🗑️ Manage Themes</button>
         </div>
       </div>
 
@@ -269,6 +271,16 @@
   <input type="file" id="file-import-syntax-theme" accept=".json" style="display:none" />
   <input type="file" id="file-import-ui-theme" accept=".json" style="display:none" />
 
+  <!-- Manage Themes Modal -->
+  <div class="modal-overlay" id="manage-themes-modal">
+    <div class="modal" style="width:550px;">
+      <h2>Manage Themes</h2>
+      <div id="manage-themes-content"></div>
+      <div class="modal-actions">
+        <button id="btn-manage-themes-close" class="btn-primary">Done</button>
+      </div>
+    </div>
+  </div>
   <script src="app.js"></script>
 </body>
 

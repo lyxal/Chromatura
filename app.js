@@ -355,18 +355,28 @@ function updateIndentGuides() {
 // INIT
 // ─────────────────────────────────────────────
 function init() {
-  buildThemeSelect();
+  // 1. Load data first (restores themes, settings, etc.)
   loadFromStorage();
+
+  // 2. Build UI from restored state
+  buildThemeSelect();
   updateDynamicStyles();
   buildSidebar();
+
+  // 3. Apply themes
   applyTheme(currentThemeId);
+  applyUITheme(customUIColors || UI_THEMES[currentUIThemeId]);
   applyFont(selectedFontFamily);
   applyLineHeight(editorLineHeight);
+
+  // 4. Render
   render();
   updateLineNumbers();
   updateHelpContent();
   updateScrollPadding();
   updateIndentGuides();
+
+  // ── Event listeners ──
 
   editorEl.addEventListener('input', onEditorInput);
   editorEl.addEventListener('scroll', syncScroll);
@@ -402,9 +412,9 @@ function init() {
     document.getElementById('line-height-display').textContent = parseFloat(e.target.value).toFixed(1);
   });
 
-  document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
-  });
+  document.getElementById('btn-ui-theme').addEventListener('click', openUIThemeModal);
+  document.getElementById('btn-ui-theme-cancel').addEventListener('click', () => document.getElementById('ui-theme-modal').classList.remove('open'));
+  document.getElementById('btn-ui-theme-apply').addEventListener('click', applyCustomUITheme);
 
   document.getElementById('btn-export-img').addEventListener('click', openExportImageModal);
   document.getElementById('btn-img-cancel').addEventListener('click', () => document.getElementById('export-img-modal').classList.remove('open'));
@@ -417,11 +427,7 @@ function init() {
   document.getElementById('img-scale').addEventListener('input', e => {
     document.getElementById('img-scale-display').textContent = e.target.value + 'x';
   });
-  document.getElementById('btn-ui-theme').addEventListener('click', openUIThemeModal);
-  document.getElementById('btn-ui-theme-cancel').addEventListener('click', () => document.getElementById('ui-theme-modal').classList.remove('open'));
-  document.getElementById('btn-ui-theme-apply').addEventListener('click', applyCustomUITheme);
 
-  // Theme import/export
   document.getElementById('btn-import-syntax-theme').addEventListener('click', () => document.getElementById('file-import-syntax-theme').click());
   document.getElementById('file-import-syntax-theme').addEventListener('change', importSyntaxTheme);
   document.getElementById('btn-import-ui-theme').addEventListener('click', () => document.getElementById('file-import-ui-theme').click());
@@ -430,6 +436,12 @@ function init() {
   document.getElementById('btn-ui-theme-export').addEventListener('click', exportUITheme);
   document.getElementById('btn-export-theme-cancel').addEventListener('click', () => document.getElementById('export-theme-modal').classList.remove('open'));
   document.getElementById('btn-export-theme-save').addEventListener('click', doExportTheme);
+
+  document.getElementById('btn-random-syntax-theme').addEventListener('click', applyRandomSyntaxTheme);
+  document.getElementById('btn-random-ui-theme').addEventListener('click', applyRandomUITheme);
+
+  document.getElementById('btn-manage-themes').addEventListener('click', openManageThemesModal);
+  document.getElementById('btn-manage-themes-close').addEventListener('click', () => document.getElementById('manage-themes-modal').classList.remove('open'));
 
   // Dropdown menus
   document.querySelectorAll('.dropdown-trigger').forEach(trigger => {
@@ -442,29 +454,35 @@ function init() {
     });
   });
 
-  // Close dropdowns when clicking elsewhere
   document.addEventListener('click', (e) => {
-    // Don't close if clicking inside a dropdown menu
     if (e.target.closest('.dropdown-menu')) return;
     document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
   });
 
-  // Close dropdown only when clicking a dropdown-item button
-  document.querySelectorAll('.dropdown-item').forEach(item => {
-    item.addEventListener('click', () => {
+  document.addEventListener('click', (e) => {
+    const item = e.target.closest('.dropdown-item');
+    if (item) {
       item.closest('.dropdown').classList.remove('open');
-    });
+    }
   });
 
-  document.getElementById('btn-random-syntax-theme').addEventListener('click', applyRandomSyntaxTheme);
-  document.getElementById('btn-random-ui-theme').addEventListener('click', applyRandomUITheme);
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+  });
 }
 
 // ─────────────────────────────────────────────
 // THEME
 // ─────────────────────────────────────────────
 function buildThemeSelect() {
-  for (const [id, theme] of Object.entries(THEMES)) { const opt = document.createElement('option'); opt.value = id; opt.textContent = theme.name; themeSelect.appendChild(opt); }
+  themeSelect.innerHTML = '';
+  for (const [id, theme] of Object.entries(THEMES)) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = theme.name;
+    themeSelect.appendChild(opt);
+  }
+  themeSelect.value = currentThemeId;
 }
 function getActiveColors() { return customColors || THEMES[currentThemeId].colors; }
 function applyTheme(id) {
@@ -977,7 +995,7 @@ function loadFromStorage() {
     const data = JSON.parse(raw);
     if (data.text) { editorEl.value = data.text; previousText = data.text; }
     if (data.highlights) highlights = data.highlights;
-    if (data.themeId && THEMES[data.themeId]) currentThemeId = data.themeId;
+    if (data.themeId) currentThemeId = data.themeId;
     if (data.customColors) customColors = data.customColors;
     if (data.indentSize) indentSize = data.indentSize;
     if (data.editorLineHeight) editorLineHeight = data.editorLineHeight;
@@ -998,27 +1016,17 @@ function loadFromStorage() {
         if (THEMES[themeId]) Object.assign(THEMES[themeId].colors, ext);
       }
     }
-    if (data.currentUIThemeId && UI_THEMES[data.currentUIThemeId]) {
-      currentUIThemeId = data.currentUIThemeId;
-    }
-    if (data.customUIColors) {
-      customUIColors = data.customUIColors;
-    }
 
-    // Restore imported syntax themes
+    // Restore imported/random syntax themes
     if (data.importedSyntaxThemes) {
       for (const [id, theme] of Object.entries(data.importedSyntaxThemes)) {
         if (!THEMES[id]) {
           THEMES[id] = theme;
-          const opt = document.createElement('option');
-          opt.value = id;
-          opt.textContent = theme.name;
-          themeSelect.appendChild(opt);
         }
       }
     }
 
-    // Restore imported UI themes
+    // Restore imported/random UI themes
     if (data.importedUIThemes) {
       for (const [id, theme] of Object.entries(data.importedUIThemes)) {
         if (!UI_THEMES[id]) {
@@ -1026,17 +1034,37 @@ function loadFromStorage() {
         }
       }
     }
-    // Apply UI theme
-    applyUITheme(customUIColors || UI_THEMES[currentUIThemeId]);
-    applyTheme(currentThemeId);
+
+    // Restore UI theme selection
+    if (data.currentUIThemeId) {
+      currentUIThemeId = data.currentUIThemeId;
+    }
+    if (data.customUIColors) {
+      customUIColors = data.customUIColors;
+    }
+
+    // Validate that the saved syntax theme still exists
+    if (!THEMES[currentThemeId]) {
+      currentThemeId = 'catppuccin';
+      customColors = null;
+    }
+
+    // Validate that the saved UI theme still exists
+    if (currentUIThemeId && !UI_THEMES[currentUIThemeId] && !customUIColors) {
+      currentUIThemeId = 'catppuccin_mocha';
+      customUIColors = null;
+    }
+
   } catch (e) {
     console.warn('Failed to load saved data:', e);
   }
 }
 
 function getImportedSyntaxThemes() {
-  // Save any themes that aren't in the original THEMES list
-  const builtinIds = new Set(['catppuccin', 'monokai', 'dracula', 'solarized', 'github_dark', 'nord', 'gruvbox', 'one_dark']);
+  const builtinIds = new Set([
+    'catppuccin', 'monokai', 'dracula', 'solarized',
+    'github_dark', 'nord', 'gruvbox', 'one_dark'
+  ]);
   const imported = {};
   for (const [id, theme] of Object.entries(THEMES)) {
     if (!builtinIds.has(id)) {
@@ -1047,8 +1075,6 @@ function getImportedSyntaxThemes() {
 }
 
 function getImportedUIThemes() {
-  const builtinIds = new Set(Object.keys(UI_THEMES).filter(id => !id.includes('_' + '') && UI_THEMES[id]));
-  // Simpler: just save all non-original ones
   const originals = new Set([
     'catppuccin_mocha', 'catppuccin_latte', 'tokyo_night', 'rose_pine',
     'github_dimmed', 'everforest', 'kanagawa', 'solarized_dark',
@@ -2020,6 +2046,192 @@ function applyRandomUITheme() {
   saveToStorage();
 
   showToast(`Generated UI theme "${name}"`);
+}
+
+// ─────────────────────────────────────────────
+// MANAGE THEMES
+// ─────────────────────────────────────────────
+const BUILTIN_SYNTAX_IDS = new Set([
+  'catppuccin', 'monokai', 'dracula', 'solarized',
+  'github_dark', 'nord', 'gruvbox', 'one_dark'
+]);
+
+const BUILTIN_UI_IDS = new Set([
+  'catppuccin_mocha', 'catppuccin_latte', 'tokyo_night', 'rose_pine',
+  'github_dimmed', 'everforest', 'kanagawa', 'solarized_dark',
+  'midnight', 'warm_dark', 'nord_ui', 'ayu_dark'
+]);
+
+function openManageThemesModal() {
+  const content = document.getElementById('manage-themes-content');
+  content.innerHTML = '';
+
+  // ── Syntax themes ──
+  const syntaxSection = document.createElement('div');
+  syntaxSection.className = 'manage-themes-section';
+  syntaxSection.innerHTML = '<h4>Syntax Themes</h4>';
+
+  const syntaxEntries = Object.entries(THEMES);
+  let hasCustomSyntax = false;
+
+  for (const [id, theme] of syntaxEntries) {
+    const isBuiltin = BUILTIN_SYNTAX_IDS.has(id);
+    const isActive = id === currentThemeId;
+
+    const row = document.createElement('div');
+    row.className = 'manage-theme-row';
+
+    // Color swatches
+    const swatches = document.createElement('div');
+    swatches.className = 'theme-swatches';
+    const previewKeys = ['keyword', 'string', 'comment', 'function', 'type'];
+    for (const key of previewKeys) {
+      if (theme.colors[key]) {
+        const dot = document.createElement('span');
+        dot.className = 'theme-swatch-dot';
+        dot.style.background = theme.colors[key];
+        swatches.appendChild(dot);
+      }
+    }
+
+    const name = document.createElement('span');
+    name.className = 'theme-name';
+    name.textContent = theme.name;
+
+    row.appendChild(swatches);
+    row.appendChild(name);
+
+    if (isActive) {
+      const badge = document.createElement('span');
+      badge.className = 'theme-active-badge';
+      badge.textContent = 'active';
+      row.appendChild(badge);
+    }
+
+    if (isBuiltin) {
+      const badge = document.createElement('span');
+      badge.className = 'theme-builtin-badge';
+      badge.textContent = 'built-in';
+      row.appendChild(badge);
+    } else {
+      hasCustomSyntax = true;
+      const del = document.createElement('button');
+      del.className = 'theme-delete-btn';
+      del.textContent = '✕';
+      del.title = 'Delete this theme';
+      del.addEventListener('click', () => {
+        deleteSyntaxTheme(id);
+        openManageThemesModal(); // Refresh the list
+      });
+      row.appendChild(del);
+    }
+
+    syntaxSection.appendChild(row);
+  }
+
+  if (!hasCustomSyntax) {
+    // Still show built-in ones, they just won't have delete buttons
+  }
+
+  content.appendChild(syntaxSection);
+
+  // ── UI themes ──
+  const uiSection = document.createElement('div');
+  uiSection.className = 'manage-themes-section';
+  uiSection.innerHTML = '<h4>UI Themes</h4>';
+
+  const uiEntries = Object.entries(UI_THEMES);
+  let hasCustomUI = false;
+
+  for (const [id, theme] of uiEntries) {
+    const isBuiltin = BUILTIN_UI_IDS.has(id);
+    const isActive = id === currentUIThemeId && !customUIColors;
+
+    const row = document.createElement('div');
+    row.className = 'manage-theme-row';
+
+    const swatches = document.createElement('div');
+    swatches.className = 'theme-swatches';
+    const uiPreviewKeys = ['bg', 'accent', 'toolbar', 'fg'];
+    for (const key of uiPreviewKeys) {
+      if (theme[key]) {
+        const dot = document.createElement('span');
+        dot.className = 'theme-swatch-dot';
+        dot.style.background = theme[key];
+        swatches.appendChild(dot);
+      }
+    }
+
+    const name = document.createElement('span');
+    name.className = 'theme-name';
+    name.textContent = theme.name;
+
+    row.appendChild(swatches);
+    row.appendChild(name);
+
+    if (isActive) {
+      const badge = document.createElement('span');
+      badge.className = 'theme-active-badge';
+      badge.textContent = 'active';
+      row.appendChild(badge);
+    }
+
+    if (isBuiltin) {
+      const badge = document.createElement('span');
+      badge.className = 'theme-builtin-badge';
+      badge.textContent = 'built-in';
+      row.appendChild(badge);
+    } else {
+      hasCustomUI = true;
+      const del = document.createElement('button');
+      del.className = 'theme-delete-btn';
+      del.textContent = '✕';
+      del.title = 'Delete this theme';
+      del.addEventListener('click', () => {
+        deleteUITheme(id);
+        openManageThemesModal(); // Refresh the list
+      });
+      row.appendChild(del);
+    }
+
+    uiSection.appendChild(row);
+  }
+
+  content.appendChild(uiSection);
+
+  document.getElementById('manage-themes-modal').classList.add('open');
+}
+
+function deleteSyntaxTheme(id) {
+  if (BUILTIN_SYNTAX_IDS.has(id)) return;
+
+  // If this is the active theme, switch to default
+  if (currentThemeId === id) {
+    currentThemeId = 'catppuccin';
+    customColors = null;
+    applyTheme(currentThemeId);
+    render();
+  }
+
+  delete THEMES[id];
+  buildThemeSelect();
+  saveToStorage();
+  showToast('Theme deleted');
+}
+
+function deleteUITheme(id) {
+  if (BUILTIN_UI_IDS.has(id)) return;
+
+  // If this is the active theme, switch to default
+  if (currentUIThemeId === id) {
+    currentUIThemeId = 'catppuccin_mocha';
+    customUIColors = null;
+    applyUITheme(UI_THEMES[currentUIThemeId]);
+  }
+
+  delete UI_THEMES[id];
+  saveToStorage();
+  showToast('UI theme deleted');
 }
 
 // ─────────────────────────────────────────────

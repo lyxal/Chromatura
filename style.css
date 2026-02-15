@@ -726,3 +726,87 @@ select:focus, button:focus { outline: 2px solid var(--accent); outline-offset: 1
   font-size: 0.7rem;
   line-height: 1;
 }
+
+/* ── Manage Themes Modal ── */
+.manage-themes-section {
+  margin-bottom: 16px;
+}
+
+.manage-themes-section h4 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--line-num);
+  margin-bottom: 8px;
+}
+
+.manage-theme-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  background: var(--editor-bg);
+}
+
+.manage-theme-row .theme-name {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--editor-fg);
+}
+
+.manage-theme-row .theme-swatches {
+  display: flex;
+  gap: 3px;
+}
+
+.manage-theme-row .theme-swatch-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.manage-theme-row .theme-active-badge {
+  font-size: 0.6rem;
+  color: var(--accent);
+  background: var(--button-bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.manage-theme-row .theme-delete-btn {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  border: 1px solid #f38ba8;
+  border-radius: 4px;
+  background: transparent;
+  color: #f38ba8;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.manage-theme-row .theme-delete-btn:hover {
+  background: rgba(243, 139, 168, 0.15);
+}
+
+.manage-theme-row .theme-builtin-badge {
+  font-size: 0.6rem;
+  color: var(--line-num);
+  padding: 2px 6px;
+}
+
+.manage-themes-empty {
+  font-size: 0.8rem;
+  color: var(--line-num);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* ── Editor placeholder ── */
+#editor::placeholder {
+  color: var(--line-num);
+  opacity: 0.6;
+}
