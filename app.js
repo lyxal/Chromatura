@@ -864,6 +864,8 @@ function buildSidebar() {
   const sidebar = document.getElementById('sidebar');
   sidebar.innerHTML = '<h3>Highlight As</h3>';
 
+  const shortcutKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
+
   categories.forEach((cat, idx) => {
     const isCustom = !BUILTIN_IDS.has(cat.id);
 
@@ -873,9 +875,11 @@ function buildSidebar() {
     const btn = document.createElement('button');
     btn.className = 'highlight-btn';
     const theme = THEMES[currentThemeId];
-    const color = (customColors && customColors[cat.id]) || (theme && theme.colors[cat.id]) || '#888';
+    const color = (customColors && customColors[cat.id])
+      || (theme && theme.colors[cat.id])
+      || '#888';
     const styleStr = `background:${color};${cat.bold ? 'border-width:2px;' : ''}`;
-    const shortcutLabel = idx < 9 ? `Alt+${idx + 1}` : '';
+    const shortcutLabel = idx < shortcutKeys.length ? `Alt+${shortcutKeys[idx]}` : '';
     btn.innerHTML = `<span class="swatch" style="${styleStr}"></span>${cat.label}<span class="shortcut">${shortcutLabel}</span>`;
     btn.addEventListener('click', () => applyHighlight(cat.id));
     wrapper.appendChild(btn);
@@ -920,7 +924,17 @@ function buildSidebar() {
   const addBtn = document.createElement('button');
   addBtn.className = 'highlight-btn add-cat-btn';
   addBtn.innerHTML = `<span class="swatch" style="background:transparent;border:1px dashed var(--line-num);display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--line-num);">+</span>Add Category`;
-  addBtn.addEventListener('click', openNewCategoryModal);
+  addBtn.addEventListener('click', () => {
+    const modal = document.getElementById('new-cat-modal');
+    modal._editCatId = null;
+    modal.querySelector('h2').textContent = 'Add Highlight Category';
+    document.getElementById('btn-new-cat-add').textContent = 'Add Category';
+    document.getElementById('new-cat-name').value = '';
+    document.getElementById('new-cat-bold').checked = false;
+    document.getElementById('new-cat-italic').checked = false;
+    document.getElementById('new-cat-preview').innerHTML = '';
+    modal.classList.add('open');
+  });
   sidebar.appendChild(addBtn);
 }
 
@@ -1331,13 +1345,11 @@ function onKeyDown(e) {
       removeHighlight();
       return;
     }
-    const shortcutMap = {};
-    for (const cat of categories) {
-      if (cat.shortcut) shortcutMap[cat.shortcut] = cat.id;
-    }
-    if (shortcutMap[e.key]) {
+    const shortcutKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
+    const idx = shortcutKeys.indexOf(e.key);
+    if (idx !== -1 && categories[idx]) {
       e.preventDefault();
-      applyHighlight(shortcutMap[e.key]);
+      applyHighlight(categories[idx].id);
     }
   }
 }
