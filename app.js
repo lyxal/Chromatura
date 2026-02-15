@@ -43,6 +43,233 @@ const THEMES = {
   nord: { name: 'Nord', colors: { keyword: '#81a1c1', string: '#a3be8c', comment: '#616e88', function: '#88c0d0', type: '#8fbcbb', number: '#b48ead', operator: '#81a1c1', variable: '#d08770', constant: '#b48ead', decorator: '#8fbcbb', tag: '#81a1c1', attribute: '#88c0d0' } },
   gruvbox: { name: 'Gruvbox Dark', colors: { keyword: '#fb4934', string: '#b8bb26', comment: '#928374', function: '#fabd2f', type: '#83a598', number: '#d3869b', operator: '#fe8019', variable: '#8ec07c', constant: '#d3869b', decorator: '#fabd2f', tag: '#fb4934', attribute: '#b8bb26' } },
   one_dark: { name: 'One Dark', colors: { keyword: '#c678dd', string: '#98c379', comment: '#5c6370', function: '#61afef', type: '#e5c07b', number: '#d19a66', operator: '#56b6c2', variable: '#e06c75', constant: '#d19a66', decorator: '#61afef', tag: '#e06c75', attribute: '#d19a66' } },
+  // ── Pastels ──
+  candy: {
+    name: 'Candy',
+    colors: {
+      keyword: '#ff79c6',
+      string: '#f1c40f',
+      comment: '#7a7a8e',
+      function: '#79e8ff',
+      type: '#c9a0ff',
+      number: '#ffb347',
+      operator: '#ff6e8a',
+      variable: '#7cffb2',
+      constant: '#ffd700',
+      decorator: '#e8a4d0',
+      tag: '#ff9aa2',
+      attribute: '#b5ead7',
+    }
+  },
+
+  // ── Warm sunset tones ──
+  sunset: {
+    name: 'Sunset',
+    colors: {
+      keyword: '#ff6b6b',
+      string: '#feca57',
+      comment: '#636e72',
+      function: '#ff9f43',
+      type: '#ee5a24',
+      number: '#f8b739',
+      operator: '#e17055',
+      variable: '#fdcb6e',
+      constant: '#fab1a0',
+      decorator: '#e77f67',
+      tag: '#ff7979',
+      attribute: '#f5cd79',
+    }
+  },
+
+  // ── Cool ocean blues and greens ──
+  oceanic: {
+    name: 'Oceanic',
+    colors: {
+      keyword: '#6c9bff',
+      string: '#5af78e',
+      comment: '#5c6773',
+      function: '#45aaf2',
+      type: '#2bcbba',
+      number: '#4ecdc4',
+      operator: '#a0d2db',
+      variable: '#7bed9f',
+      constant: '#70a1ff',
+      decorator: '#1dd1a1',
+      tag: '#48dbfb',
+      attribute: '#55efc4',
+    }
+  },
+
+  // ── Cyberpunk / neon ──
+  neon: {
+    name: 'Neon',
+    colors: {
+      keyword: '#ff00ff',
+      string: '#00ff9f',
+      comment: '#555577',
+      function: '#00e5ff',
+      type: '#ff3d71',
+      number: '#ffff00',
+      operator: '#ff6fff',
+      variable: '#00ffcc',
+      constant: '#ffd319',
+      decorator: '#c471f5',
+      tag: '#ff2e63',
+      attribute: '#08f7fe',
+    }
+  },
+
+  // ── Earthy muted greens and browns ──
+  forest: {
+    name: 'Forest',
+    colors: {
+      keyword: '#a8cc8c',
+      string: '#dbbc7f',
+      comment: '#68826d',
+      function: '#88c0d0',
+      type: '#d3a86c',
+      number: '#e0ac6e',
+      operator: '#9bb58e',
+      variable: '#b8d49c',
+      constant: '#d4956a',
+      decorator: '#7faa8c',
+      tag: '#c9b67e',
+      attribute: '#a3be8c',
+    }
+  },
+
+  // ── Frosty cool pastels ──
+  frost: {
+    name: 'Frost',
+    colors: {
+      keyword: '#b0c4de',
+      string: '#a7d8de',
+      comment: '#5a6a7a',
+      function: '#87ceeb',
+      type: '#dda0dd',
+      number: '#add8e6',
+      operator: '#b0b7c3',
+      variable: '#98d8c8',
+      constant: '#cdb4db',
+      decorator: '#a0c4e8',
+      tag: '#bbd0e8',
+      attribute: '#c5dedd',
+    }
+  },
+
+  // ── High contrast retro terminal ──
+  phosphor: {
+    name: 'Phosphor',
+    colors: {
+      keyword: '#00ff41',
+      string: '#00e5ff',
+      comment: '#3a5f3a',
+      function: '#39ff14',
+      type: '#7dff7d',
+      number: '#b5ff4d',
+      operator: '#00ff41',
+      variable: '#76ff7a',
+      constant: '#ccff00',
+      decorator: '#44ff88',
+      tag: '#00ff66',
+      attribute: '#88ffa8',
+    }
+  },
+
+  // ── Purple-heavy cosmic ──
+  nebula: {
+    name: 'Nebula',
+    colors: {
+      keyword: '#c792ea',
+      string: '#ecc48d',
+      comment: '#5c5c7a',
+      function: '#82aaff',
+      type: '#f78c6c',
+      number: '#f5a623',
+      operator: '#89ddff',
+      variable: '#addb67',
+      constant: '#ff5572',
+      decorator: '#b480d6',
+      tag: '#f07178',
+      attribute: '#c3e88d',
+    }
+  },
+
+  // ── Muted vintage / sepia ──
+  parchment: {
+    name: 'Parchment',
+    colors: {
+      keyword: '#a67458',
+      string: '#8a9a5b',
+      comment: '#7a7062',
+      function: '#b07850',
+      type: '#c49060',
+      number: '#9b8b6e',
+      operator: '#8e7b6a',
+      variable: '#a08c6e',
+      constant: '#b49272',
+      decorator: '#917860',
+      tag: '#a87b5a',
+      attribute: '#98a070',
+    }
+  },
+
+  // ── Vibrant synthwave / outrun ──
+  synthwave: {
+    name: 'Synthwave',
+    colors: {
+      keyword: '#ff7edb',
+      string: '#f97e72',
+      comment: '#6556a5',
+      function: '#36f9f6',
+      type: '#fede5d',
+      number: '#ff8b39',
+      operator: '#e8d44d',
+      variable: '#72f1b8',
+      constant: '#f92aad',
+      decorator: '#c991e1',
+      tag: '#fe4450',
+      attribute: '#2ee2fa',
+    }
+  },
+
+  // ── Monochrome with blue accent ──
+  ink: {
+    name: 'Ink',
+    colors: {
+      keyword: '#e0e0e0',
+      string: '#6eaeff',
+      comment: '#4a4a5a',
+      function: '#c8c8d0',
+      type: '#8ab4f8',
+      number: '#a0a0b0',
+      operator: '#909098',
+      variable: '#d0d0d8',
+      constant: '#5e9ff5',
+      decorator: '#7888a0',
+      tag: '#bac0cc',
+      attribute: '#7eaadc',
+    }
+  },
+
+  // ── Cherry blossom pink/white ──
+  sakura: {
+    name: 'Sakura',
+    colors: {
+      keyword: '#e891a8',
+      string: '#d4a0b0',
+      comment: '#7a6872',
+      function: '#c484a0',
+      type: '#f0b0c0',
+      number: '#d09888',
+      operator: '#c898a8',
+      variable: '#e0a8b8',
+      constant: '#d88898',
+      decorator: '#c880a0',
+      tag: '#e898b0',
+      attribute: '#d0a0a8',
+    }
+  },
 };
 
 // ─────────────────────────────────────────────
@@ -459,6 +686,7 @@ function init() {
     document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
   });
 
+  // Close dropdown when clicking a dropdown-item (but not theme picker options)
   document.addEventListener('click', (e) => {
     const item = e.target.closest('.dropdown-item');
     if (item) {
@@ -475,6 +703,7 @@ function init() {
 // THEME
 // ─────────────────────────────────────────────
 function buildThemeSelect() {
+  // Keep the hidden <select> in sync for any legacy references
   themeSelect.innerHTML = '';
   for (const [id, theme] of Object.entries(THEMES)) {
     const opt = document.createElement('option');
@@ -483,6 +712,60 @@ function buildThemeSelect() {
     themeSelect.appendChild(opt);
   }
   themeSelect.value = currentThemeId;
+
+  // Build the visual picker
+  buildSyntaxThemePicker();
+}
+
+function buildSyntaxThemePicker() {
+  const picker = document.getElementById('syntax-theme-picker');
+  if (!picker) return;
+  picker.innerHTML = '';
+
+  const previewKeys = ['keyword', 'string', 'function', 'type', 'number', 'variable', 'comment'];
+
+  for (const [id, theme] of Object.entries(THEMES)) {
+    const option = document.createElement('button');
+    option.className = 'syntax-theme-option' + (id === currentThemeId ? ' active' : '');
+
+    // Color swatches
+    const swatches = document.createElement('div');
+    swatches.className = 'syntax-theme-swatches';
+    for (const key of previewKeys) {
+      const bar = document.createElement('span');
+      bar.className = 'swatch-bar';
+      bar.style.background = theme.colors[key] || '#888';
+      swatches.appendChild(bar);
+    }
+
+    // Name
+    const name = document.createElement('span');
+    name.className = 'syntax-theme-name';
+    name.textContent = theme.name;
+
+    option.appendChild(swatches);
+    option.appendChild(name);
+
+    // Active indicator
+    if (id === currentThemeId) {
+      const dot = document.createElement('span');
+      dot.className = 'syntax-theme-active-dot';
+      option.appendChild(dot);
+    }
+
+    option.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentThemeId = id;
+      customColors = null;
+      themeSelect.value = id;
+      applyTheme(id);
+      render();
+      saveToStorage();
+      buildSyntaxThemePicker(); // refresh active state
+    });
+
+    picker.appendChild(option);
+  }
 }
 function getActiveColors() { return customColors || THEMES[currentThemeId].colors; }
 function applyTheme(id) {
@@ -1570,6 +1853,165 @@ const UI_THEMES = {
     scrollThumb: '#1c2028', selection: 'rgba(230, 180, 80, 0.2)',
     accentHover: '#ffb454',
   },
+  // ── Warm Rosé ──
+  rose: {
+    name: 'Rosé',
+    bg: '#2a1f2d', editorBg: '#231a26', fg: '#e8d5e0',
+    accent: '#e8849a', toolbar: '#332838', border: '#4a3650',
+    buttonBg: '#4a3650', buttonHover: '#5c4562', lineNum: '#7a6580',
+    scrollThumb: '#4a3650', selection: 'rgba(232, 132, 154, 0.25)',
+    accentHover: '#f0a0b4',
+  },
+
+  // ── Deep ocean ──
+  abyss: {
+    name: 'Abyss',
+    bg: '#060b18', editorBg: '#040810', fg: '#8ea4c8',
+    accent: '#3d8ef0', toolbar: '#0c1528', border: '#162040',
+    buttonBg: '#162040', buttonHover: '#1e2d55', lineNum: '#3a5070',
+    scrollThumb: '#162040', selection: 'rgba(61, 142, 240, 0.2)',
+    accentHover: '#5eaaff',
+  },
+
+  // ── Mint fresh ──
+  mint: {
+    name: 'Mint',
+    bg: '#1a2a28', editorBg: '#152422', fg: '#c8e0d8',
+    accent: '#6ee7b7', toolbar: '#223832', border: '#305048',
+    buttonBg: '#305048', buttonHover: '#3d6058', lineNum: '#5a8878',
+    scrollThumb: '#305048', selection: 'rgba(110, 231, 183, 0.2)',
+    accentHover: '#86efca',
+  },
+
+  // ── Amber / golden ──
+  amber: {
+    name: 'Amber',
+    bg: '#1c1810', editorBg: '#17140c', fg: '#d8caa8',
+    accent: '#f0a830', toolbar: '#28220e', border: '#3d3518',
+    buttonBg: '#3d3518', buttonHover: '#504822', lineNum: '#7a6e48',
+    scrollThumb: '#3d3518', selection: 'rgba(240, 168, 48, 0.2)',
+    accentHover: '#f5c050',
+  },
+
+  // ── Clean light theme ──
+  paper: {
+    name: 'Paper',
+    bg: '#f8f6f1', editorBg: '#ffffff', fg: '#2e2e2e',
+    accent: '#2563eb', toolbar: '#eae8e3', border: '#d4d0c8',
+    buttonBg: '#e0ddd6', buttonHover: '#d0cdc5', lineNum: '#9a9590',
+    scrollThumb: '#c8c4bc', selection: 'rgba(37, 99, 235, 0.15)',
+    accentHover: '#3b82f6',
+  },
+
+  // ── Warm cream light theme ──
+  linen: {
+    name: 'Linen',
+    bg: '#faf5ee', editorBg: '#fefbf5', fg: '#3a3530',
+    accent: '#b45309', toolbar: '#f0e8dc', border: '#ddd4c4',
+    buttonBg: '#e8dfcf', buttonHover: '#ddd4c4', lineNum: '#a09888',
+    scrollThumb: '#cec4b4', selection: 'rgba(180, 83, 9, 0.15)',
+    accentHover: '#d97706',
+  },
+
+  // ── Slate / industrial ──
+  slate: {
+    name: 'Slate',
+    bg: '#1e2430', editorBg: '#181e28', fg: '#b0bec5',
+    accent: '#78909c', toolbar: '#263040', border: '#374555',
+    buttonBg: '#374555', buttonHover: '#445568', lineNum: '#5a6e7e',
+    scrollThumb: '#374555', selection: 'rgba(120, 144, 156, 0.25)',
+    accentHover: '#90a4ae',
+  },
+
+  // ── Neon cyberpunk ──
+  cyber: {
+    name: 'Cyber',
+    bg: '#0a0a14', editorBg: '#06060e', fg: '#c0c8e0',
+    accent: '#ff00ff', toolbar: '#12121f', border: '#1e1e35',
+    buttonBg: '#1e1e35', buttonHover: '#2a2a48', lineNum: '#4a4a6a',
+    scrollThumb: '#1e1e35', selection: 'rgba(255, 0, 255, 0.15)',
+    accentHover: '#ff66ff',
+  },
+
+  // ── Lavender soft purple ──
+  lavender: {
+    name: 'Lavender',
+    bg: '#22202e', editorBg: '#1c1a28', fg: '#d8d0e8',
+    accent: '#b8a0e0', toolbar: '#2c2840', border: '#3e385a',
+    buttonBg: '#3e385a', buttonHover: '#4e4870', lineNum: '#6a6088',
+    scrollThumb: '#3e385a', selection: 'rgba(184, 160, 224, 0.25)',
+    accentHover: '#cbb8f0',
+  },
+
+  // ── Cherry red ──
+  cherry: {
+    name: 'Cherry',
+    bg: '#1e1015', editorBg: '#180c10', fg: '#dcc8cc',
+    accent: '#e84060', toolbar: '#2a1820', border: '#402030',
+    buttonBg: '#402030', buttonHover: '#552840', lineNum: '#7a5060',
+    scrollThumb: '#402030', selection: 'rgba(232, 64, 96, 0.2)',
+    accentHover: '#f06080',
+  },
+
+  // ── Sepia vintage ──
+  sepia: {
+    name: 'Sepia',
+    bg: '#201c14', editorBg: '#1a1610', fg: '#c8b898',
+    accent: '#c8a060', toolbar: '#2a2418', border: '#3a3020',
+    buttonBg: '#3a3020', buttonHover: '#4a4030', lineNum: '#786848',
+    scrollThumb: '#3a3020', selection: 'rgba(200, 160, 96, 0.2)',
+    accentHover: '#d8b878',
+  },
+
+  // ── Soft green on dark — terminal inspired ──
+  terminal: {
+    name: 'Terminal',
+    bg: '#0c100c', editorBg: '#080a08', fg: '#30d050',
+    accent: '#00ff41', toolbar: '#141a14', border: '#1e281e',
+    buttonBg: '#1e281e', buttonHover: '#283828', lineNum: '#1e6e2e',
+    scrollThumb: '#1e281e', selection: 'rgba(0, 255, 65, 0.12)',
+    accentHover: '#50ff70',
+  },
+
+  // ── High contrast light ──
+  daylight: {
+    name: 'Daylight',
+    bg: '#ffffff', editorBg: '#fafafa', fg: '#1a1a1a',
+    accent: '#0550ae', toolbar: '#f0f0f0', border: '#d0d0d0',
+    buttonBg: '#e0e0e0', buttonHover: '#d0d0d0', lineNum: '#8a8a8a',
+    scrollThumb: '#b0b0b0', selection: 'rgba(5, 80, 174, 0.15)',
+    accentHover: '#0969da',
+  },
+
+  // ── Cozy fireplace warm dark ──
+  ember: {
+    name: 'Ember',
+    bg: '#1a1210', editorBg: '#14100c', fg: '#d0b898',
+    accent: '#e07030', toolbar: '#241c14', border: '#3a2c1e',
+    buttonBg: '#3a2c1e', buttonHover: '#4a3c2e', lineNum: '#6e5840',
+    scrollThumb: '#3a2c1e', selection: 'rgba(224, 112, 48, 0.2)',
+    accentHover: '#f09050',
+  },
+
+  // ── Arctic ice blue ──
+  arctic: {
+    name: 'Arctic',
+    bg: '#0e1824', editorBg: '#0a1420', fg: '#c0d8ef',
+    accent: '#5cc4ff', toolbar: '#142030', border: '#1e3048',
+    buttonBg: '#1e3048', buttonHover: '#284060', lineNum: '#3e6080',
+    scrollThumb: '#1e3048', selection: 'rgba(92, 196, 255, 0.2)',
+    accentHover: '#80d4ff',
+  },
+
+  // ── Soft pink light theme ──
+  blossom: {
+    name: 'Blossom',
+    bg: '#fdf2f4', editorBg: '#fff8f9', fg: '#3a2830',
+    accent: '#d6336c', toolbar: '#f5e0e5', border: '#e8c8d0',
+    buttonBg: '#f0d0d8', buttonHover: '#e8c0c8', lineNum: '#a08890',
+    scrollThumb: '#dcc0c8', selection: 'rgba(214, 51, 108, 0.12)',
+    accentHover: '#e8508a',
+  },
 };
 
 let currentUIThemeId = 'catppuccin_mocha';
@@ -2053,13 +2495,17 @@ function applyRandomUITheme() {
 // ─────────────────────────────────────────────
 const BUILTIN_SYNTAX_IDS = new Set([
   'catppuccin', 'monokai', 'dracula', 'solarized',
-  'github_dark', 'nord', 'gruvbox', 'one_dark'
+  'github_dark', 'nord', 'gruvbox', 'one_dark',
+  'candy', 'sunset', 'oceanic', 'neon', 'forest', 'frost',
+  'phosphor', 'nebula', 'parchment', 'synthwave', 'ink', 'sakura',
 ]);
 
 const BUILTIN_UI_IDS = new Set([
   'catppuccin_mocha', 'catppuccin_latte', 'tokyo_night', 'rose_pine',
   'github_dimmed', 'everforest', 'kanagawa', 'solarized_dark',
-  'midnight', 'warm_dark', 'nord_ui', 'ayu_dark'
+  'midnight', 'warm_dark', 'nord_ui', 'ayu_dark',
+  'rose', 'abyss', 'mint', 'amber', 'paper', 'linen', 'slate', 'cyber',
+  'lavender', 'cherry', 'sepia', 'terminal', 'daylight', 'ember', 'arctic', 'blossom',
 ]);
 
 function openManageThemesModal() {

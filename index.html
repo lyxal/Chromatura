@@ -17,10 +17,10 @@
       <!-- Theme Menu -->
       <div class="dropdown">
         <button class="dropdown-trigger">🎨 Theme ▾</button>
-        <div class="dropdown-menu">
+        <div class="dropdown-menu" style="min-width:280px;">
           <div class="dropdown-section">
             <label class="dropdown-label">Syntax Theme</label>
-            <select id="theme-select" class="dropdown-select"></select>
+            <div id="syntax-theme-picker" class="syntax-theme-picker"></div>
           </div>
           <button class="dropdown-item" id="btn-edit-theme">🎨 Edit Colors</button>
           <button class="dropdown-item" id="btn-import-syntax-theme">📥 Import Syntax Theme</button>
@@ -265,12 +265,6 @@
     </div>
   </div>
 
-  <!-- Hidden file inputs -->
-  <input type="file" id="file-import" accept=".json" style="display:none" />
-  <input type="file" id="font-file-input" accept=".ttf,.otf,.woff,.woff2" style="display:none" />
-  <input type="file" id="file-import-syntax-theme" accept=".json" style="display:none" />
-  <input type="file" id="file-import-ui-theme" accept=".json" style="display:none" />
-
   <!-- Manage Themes Modal -->
   <div class="modal-overlay" id="manage-themes-modal">
     <div class="modal" style="width:550px;">
@@ -281,6 +275,14 @@
       </div>
     </div>
   </div>
+
+  <!-- Hidden inputs -->
+  <select id="theme-select" style="display:none;"></select>
+  <input type="file" id="file-import" accept=".json" style="display:none" />
+  <input type="file" id="font-file-input" accept=".ttf,.otf,.woff,.woff2" style="display:none" />
+  <input type="file" id="file-import-syntax-theme" accept=".json" style="display:none" />
+  <input type="file" id="file-import-ui-theme" accept=".json" style="display:none" />
+
   <script src="app.js"></script>
 </body>
 
