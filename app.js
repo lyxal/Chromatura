@@ -544,6 +544,8 @@ function updateIndentGuides() {
   const fontSize = parseFloat(getComputedStyle(editorEl).fontSize);
   const lh = fontSize * editorLineHeight;
 
+  const editorPadding = parseFloat(getComputedStyle(editorEl).paddingLeft) || 12;
+
   const container = document.createElement('div');
   container.id = 'indent-guides-container';
   container.style.position = 'relative';
@@ -561,8 +563,8 @@ function updateIndentGuides() {
     for (let lvl = 1; lvl <= levels; lvl++) {
       const guide = document.createElement('div');
       guide.className = 'indent-guide';
-      const x = (lvl * indentSize) * charWidth;
-      const y = vi * lh;
+      const x = editorPadding + (lvl * indentSize - 0.5) * charWidth;
+      const y = editorPadding + vi * lh;
       guide.style.left = x + 'px';
       guide.style.top = y + 'px';
       guide.style.height = lh + 'px';
