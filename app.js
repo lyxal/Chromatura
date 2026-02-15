@@ -346,7 +346,7 @@ function hslToHex(h, s, l) {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 function generateColorForTheme(themeColors, index) {
-  const existing = Object.values(themeColors);
+  const existing = Object.values(themeColors).filter(v => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v));
   let totalS = 0, totalL = 0; const hues = [];
   for (const hex of existing) { const [h, s, l] = hexToHSL(hex); totalS += s; totalL += l; hues.push(h); }
   const avgS = totalS / existing.length, avgL = totalL / existing.length;
