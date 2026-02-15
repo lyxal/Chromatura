@@ -560,7 +560,7 @@ function updateIndentGuides() {
     const levels = Math.floor(indent / indentSize);
     for (let lvl = 1; lvl <= levels; lvl++) {
       const guide = document.createElement('div');
-      guide.className = 'indent-guide-line';
+      guide.className = 'indent-guide';
       const x = (lvl * indentSize) * charWidth;
       const y = vi * lh;
       guide.style.left = x + 'px';
@@ -875,9 +875,13 @@ function buildSidebar() {
     const btn = document.createElement('button');
     btn.className = 'highlight-btn';
     const theme = THEMES[currentThemeId];
-    const color = (customColors && customColors[cat.id])
+    let color = (customColors && customColors[cat.id])
       || (theme && theme.colors[cat.id])
-      || '#888';
+      || null;
+    if (!color) {
+      color = generateColorForTheme(theme.colors, idx);
+      theme.colors[cat.id] = color; // persist so it doesn't regenerate
+    }
     const styleStr = `background:${color};${cat.bold ? 'border-width:2px;' : ''}`;
     const shortcutLabel = idx < shortcutKeys.length ? `Alt+${shortcutKeys[idx]}` : '';
     btn.innerHTML = `<span class="swatch" style="${styleStr}"></span>${cat.label}<span class="shortcut">${shortcutLabel}</span>`;
