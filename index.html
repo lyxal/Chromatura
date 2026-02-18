@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chromatura — Manual Syntax Highlighter</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#313244" />
 </head>
 
 <body>
@@ -300,6 +302,15 @@
   <input type="file" id="file-import-ui-theme" accept=".json" style="display:none" />
 
   <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => {
+          console.warn('Service worker registration failed:', err);
+        });
+      });
+    }
+  </script>
 </body>
 
 </html>
