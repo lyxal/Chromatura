@@ -734,7 +734,38 @@ function init() {
     saveAllToStorage();
   });
 
+  // Move files back to root by dropping onto the file list background
+  const fileList = document.getElementById('file-list');
+  fileList.addEventListener('dragover', (e) => {
+    if (e.dataTransfer.types.includes('text/file-id') &&
+        (e.target === fileList || e.target.classList.contains('file-list'))) {
+      e.preventDefault();
+      fileList.classList.add('drag-over-root');
+    }
+  });
+  fileList.addEventListener('dragleave', (e) => {
+    if (!fileList.contains(e.relatedTarget)) {
+      fileList.classList.remove('drag-over-root');
+    }
+  });
+  fileList.addEventListener('drop', (e) => {
+    fileList.classList.remove('drag-over-root');
+    if (e.target === fileList || e.target.classList.contains('file-list')) {
+      const fileId = e.dataTransfer.getData('text/file-id');
+      if (fileId) {
+        const file = files.find(f => f.id === fileId);
+        if (file) {
+          file.folderId = null;
+          buildFileList();
+          saveFilesToStorage();
+        }
+      }
+    }
+  });
+
   document.getElementById('btn-new-file').addEventListener('click', () => createNewFile());
+
+  document.getElementById('btn-new-folder').addEventListener('click', () => createNewFolder());
 
   // Save files whenever editor changes
   editorEl.addEventListener('input', () => {
@@ -2865,6 +2896,7 @@ function deleteUITheme(id) {
 // ─────────────────────────────────────────────
 
 let files = [];
+let folders = [];
 let activeFileId = null;
 let fileExplorerOpen = false;
 
@@ -2904,6 +2936,97 @@ function generateFileName() {
     name = `Untitled ${num}`;
   }
   return name;
+}
+
+function generateFolderId() {
+  return 'folder_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+}
+
+function createNewFolder(name = null) {
+  const folderName = name || generateFolderName();
+  const folder = {
+    id: generateFolderId(),
+    name: folderName,
+    collapsed: false,
+  };
+  folders.push(folder);
+  buildFileList();
+  saveFilesToStorage();
+  showToast(`Created folder "${folderName}"`);
+  return folder;
+}
+
+function generateFolderName() {
+  const existing = folders.map(f => f.name);
+  let num = folders.length + 1;
+  let name = `Folder ${num}`;
+  while (existing.includes(name)) {
+    num++;
+    name = `Folder ${num}`;
+  }
+  return name;
+}
+
+function deleteFolder(id) {
+  const folder = folders.find(f => f.id === id);
+  if (!folder) return;
+
+  const filesInFolder = files.filter(f => f.folderId === id);
+  const msg = filesInFolder.length > 0
+    ? `Delete folder "${folder.name}" and move its ${filesInFolder.length} file(s) to root?`
+    : `Delete folder "${folder.name}"?`;
+
+  if (!confirm(msg)) return;
+
+  // Move files to root
+  for (const f of filesInFolder) { f.folderId = null; }
+
+  const idx = folders.findIndex(f => f.id === id);
+  folders.splice(idx, 1);
+
+  buildFileList();
+  saveFilesToStorage();
+  showToast(`Deleted folder "${folder.name}"`);
+}
+
+function renameFolder(id) {
+  const folder = folders.find(f => f.id === id);
+  if (!folder) return;
+
+  const item = document.querySelector(`.folder-item[data-id="${id}"]`);
+  if (!item) return;
+
+  const nameEl = item.querySelector('.folder-item-name');
+  const originalName = folder.name;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'file-item-name-input';
+  input.value = folder.name;
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  function commit() {
+    const newName = input.value.trim() || originalName;
+    folder.name = newName;
+    buildFileList();
+    saveFilesToStorage();
+  }
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = originalName; input.blur(); }
+  });
+}
+
+function toggleFolder(id) {
+  const folder = folders.find(f => f.id === id);
+  if (!folder) return;
+  folder.collapsed = !folder.collapsed;
+  buildFileList();
+  saveFilesToStorage();
 }
 
 function saveCurrentFileState() {
@@ -3033,35 +3156,29 @@ function buildFileList() {
   const list = document.getElementById('file-list');
   list.innerHTML = '';
 
-  if (files.length === 0) {
+  if (files.length === 0 && folders.length === 0) {
     list.innerHTML = '<div class="file-empty-state">No files yet</div>';
     return;
   }
 
-  for (const file of files) {
-    const item = document.createElement('div');
-    item.className = 'file-item' + (file.id === activeFileId ? ' active' : '');
-    item.dataset.id = file.id;
+  // Render folders first, then root-level files
+  for (const folder of folders) {
+    const folderEl = document.createElement('div');
+    folderEl.className = 'folder-item';
+    folderEl.dataset.id = folder.id;
 
-    // Icon
+    const arrow = document.createElement('span');
+    arrow.className = 'folder-item-arrow';
+    arrow.textContent = folder.collapsed ? '▶' : '▼';
+
     const icon = document.createElement('span');
     icon.className = 'file-item-icon';
-    icon.textContent = '📄';
+    icon.textContent = folder.collapsed ? '📁' : '📂';
 
-    // Name
     const name = document.createElement('span');
-    name.className = 'file-item-name';
-    name.textContent = file.name;
+    name.className = 'folder-item-name';
+    name.textContent = folder.name;
 
-    // Meta info (line count)
-    const meta = document.createElement('span');
-    meta.className = 'file-item-meta';
-    const lineCount = file.text ? file.text.split('\n').length : 0;
-    const hlCount = file.highlights ? file.highlights.length : 0;
-    meta.textContent = `${lineCount}L`;
-    meta.title = `${lineCount} lines, ${hlCount} highlights`;
-
-    // Action buttons (shown on hover)
     const actions = document.createElement('div');
     actions.className = 'file-item-actions';
 
@@ -3069,37 +3186,137 @@ function buildFileList() {
     renameBtn.className = 'file-item-action-btn';
     renameBtn.textContent = '✏️';
     renameBtn.title = 'Rename';
-    renameBtn.addEventListener('click', (e) => { e.stopPropagation(); renameFile(file.id); });
-
-    const dupeBtn = document.createElement('button');
-    dupeBtn.className = 'file-item-action-btn';
-    dupeBtn.textContent = '📋';
-    dupeBtn.title = 'Duplicate';
-    dupeBtn.addEventListener('click', (e) => { e.stopPropagation(); duplicateFile(file.id); });
+    renameBtn.addEventListener('click', (e) => { e.stopPropagation(); renameFolder(folder.id); });
 
     const delBtn = document.createElement('button');
     delBtn.className = 'file-item-action-btn delete';
     delBtn.textContent = '✕';
-    delBtn.title = 'Delete';
-    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteFile(file.id); });
+    delBtn.title = 'Delete folder';
+    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteFolder(folder.id); });
 
     actions.appendChild(renameBtn);
-    actions.appendChild(dupeBtn);
     actions.appendChild(delBtn);
 
-    item.appendChild(icon);
-    item.appendChild(name);
-    item.appendChild(meta);
-    item.appendChild(actions);
+    folderEl.appendChild(arrow);
+    folderEl.appendChild(icon);
+    folderEl.appendChild(name);
+    folderEl.appendChild(actions);
 
-    // Click to switch
-    item.addEventListener('click', () => switchToFile(file.id));
-
+    // Click to toggle collapse
+    folderEl.addEventListener('click', () => toggleFolder(folder.id));
     // Double-click to rename
-    item.addEventListener('dblclick', (e) => { e.preventDefault(); renameFile(file.id); });
+    folderEl.addEventListener('dblclick', (e) => { e.preventDefault(); renameFolder(folder.id); });
 
-    list.appendChild(item);
+    // Drag-over: accept file drops
+    folderEl.addEventListener('dragover', (e) => {
+      if (e.dataTransfer.types.includes('text/file-id')) {
+        e.preventDefault();
+        folderEl.classList.add('drag-over');
+      }
+    });
+    folderEl.addEventListener('dragleave', () => folderEl.classList.remove('drag-over'));
+    folderEl.addEventListener('drop', (e) => {
+      e.preventDefault();
+      folderEl.classList.remove('drag-over');
+      const fileId = e.dataTransfer.getData('text/file-id');
+      if (fileId) {
+        const file = files.find(f => f.id === fileId);
+        if (file) {
+          file.folderId = folder.id;
+          buildFileList();
+          saveFilesToStorage();
+        }
+      }
+    });
+
+    list.appendChild(folderEl);
+
+    // Render files inside this folder (indented)
+    if (!folder.collapsed) {
+      const filesInFolder = files.filter(f => f.folderId === folder.id);
+      for (const file of filesInFolder) {
+        list.appendChild(buildFileItem(file, true));
+      }
+    }
   }
+
+  // Render root-level files (no folder)
+  const rootFiles = files.filter(f => !f.folderId);
+  for (const file of rootFiles) {
+    list.appendChild(buildFileItem(file, false));
+  }
+}
+
+function buildFileItem(file, indented) {
+  const item = document.createElement('div');
+  item.className = 'file-item' + (file.id === activeFileId ? ' active' : '') + (indented ? ' file-item-indented' : '');
+  item.dataset.id = file.id;
+  item.draggable = true;
+
+  // Icon
+  const icon = document.createElement('span');
+  icon.className = 'file-item-icon';
+  icon.textContent = '📄';
+
+  // Name
+  const name = document.createElement('span');
+  name.className = 'file-item-name';
+  name.textContent = file.name;
+
+  // Meta info (line count)
+  const meta = document.createElement('span');
+  meta.className = 'file-item-meta';
+  const lineCount = file.text ? file.text.split('\n').length : 0;
+  const hlCount = file.highlights ? file.highlights.length : 0;
+  meta.textContent = `${lineCount}L`;
+  meta.title = `${lineCount} lines, ${hlCount} highlights`;
+
+  // Action buttons (shown on hover)
+  const actions = document.createElement('div');
+  actions.className = 'file-item-actions';
+
+  const renameBtn = document.createElement('button');
+  renameBtn.className = 'file-item-action-btn';
+  renameBtn.textContent = '✏️';
+  renameBtn.title = 'Rename';
+  renameBtn.addEventListener('click', (e) => { e.stopPropagation(); renameFile(file.id); });
+
+  const dupeBtn = document.createElement('button');
+  dupeBtn.className = 'file-item-action-btn';
+  dupeBtn.textContent = '📋';
+  dupeBtn.title = 'Duplicate';
+  dupeBtn.addEventListener('click', (e) => { e.stopPropagation(); duplicateFile(file.id); });
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'file-item-action-btn delete';
+  delBtn.textContent = '✕';
+  delBtn.title = 'Delete';
+  delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteFile(file.id); });
+
+  actions.appendChild(renameBtn);
+  actions.appendChild(dupeBtn);
+  actions.appendChild(delBtn);
+
+  item.appendChild(icon);
+  item.appendChild(name);
+  item.appendChild(meta);
+  item.appendChild(actions);
+
+  // Click to switch
+  item.addEventListener('click', () => switchToFile(file.id));
+
+  // Double-click to rename
+  item.addEventListener('dblclick', (e) => { e.preventDefault(); renameFile(file.id); });
+
+  // Drag to move into a folder
+  item.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('text/file-id', file.id);
+    e.dataTransfer.effectAllowed = 'move';
+    item.classList.add('dragging');
+  });
+  item.addEventListener('dragend', () => item.classList.remove('dragging'));
+
+  return item;
 }
 
 function toggleFileExplorer() {
@@ -3123,6 +3340,7 @@ function saveFilesToStorage() {
     saveCurrentFileState();
     localStorage.setItem('chromatura_files', JSON.stringify({
       files,
+      folders,
       activeFileId,
       fileExplorerOpen,
     }));
@@ -3139,6 +3357,7 @@ function loadFilesFromStorage() {
 
     if (data.files && data.files.length > 0) {
       files = data.files;
+      folders = data.folders || [];
       activeFileId = data.activeFileId || files[0].id;
       fileExplorerOpen = data.fileExplorerOpen || false;
 
