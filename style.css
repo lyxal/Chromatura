@@ -449,6 +449,69 @@ header {
   font-style: italic;
 }
 
+/* ── Folder items ── */
+.folder-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: var(--editor-fg);
+  transition: background 0.1s;
+  position: relative;
+  border-left: 2px solid transparent;
+  user-select: none;
+}
+
+.folder-item:hover {
+  background: var(--button-bg);
+}
+
+.folder-item.drag-over {
+  background: var(--button-hover);
+  border-left-color: var(--accent);
+  outline: 1px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+.folder-item-arrow {
+  flex-shrink: 0;
+  font-size: 0.55rem;
+  color: var(--line-num);
+  width: 10px;
+}
+
+.folder-item-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-item .file-item-actions {
+  display: none;
+}
+
+.folder-item:hover .file-item-actions {
+  display: flex;
+}
+
+/* Indented files inside folders */
+.file-item-indented {
+  padding-left: 28px;
+}
+
+/* Drag states */
+.file-item.dragging {
+  opacity: 0.4;
+}
+
+.file-list.drag-over-root {
+  outline: 1px dashed var(--accent);
+  outline-offset: -2px;
+}
+
 /* ── Sidebar ── */
 .sidebar {
   width: 200px;
