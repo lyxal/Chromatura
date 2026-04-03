@@ -734,6 +734,35 @@ function init() {
     saveAllToStorage();
   });
 
+  // Move files back to root by dropping onto the file list background
+  const fileList = document.getElementById('file-list');
+  fileList.addEventListener('dragover', (e) => {
+    if (e.dataTransfer.types.includes('text/file-id') &&
+        (e.target === fileList || e.target.classList.contains('file-list'))) {
+      e.preventDefault();
+      fileList.classList.add('drag-over-root');
+    }
+  });
+  fileList.addEventListener('dragleave', (e) => {
+    if (!fileList.contains(e.relatedTarget)) {
+      fileList.classList.remove('drag-over-root');
+    }
+  });
+  fileList.addEventListener('drop', (e) => {
+    fileList.classList.remove('drag-over-root');
+    if (e.target === fileList || e.target.classList.contains('file-list')) {
+      const fileId = e.dataTransfer.getData('text/file-id');
+      if (fileId) {
+        const file = files.find(f => f.id === fileId);
+        if (file) {
+          file.folderId = null;
+          buildFileList();
+          saveFilesToStorage();
+        }
+      }
+    }
+  });
+
   document.getElementById('btn-new-file').addEventListener('click', () => createNewFile());
 
   document.getElementById('btn-new-folder').addEventListener('click', () => createNewFolder());
@@ -2950,7 +2979,7 @@ function deleteFolder(id) {
   if (!confirm(msg)) return;
 
   // Move files to root
-  filesInFolder.forEach(f => { f.folderId = null; });
+  for (const f of filesInFolder) { f.folderId = null; }
 
   const idx = folders.findIndex(f => f.id === id);
   folders.splice(idx, 1);
@@ -3216,36 +3245,6 @@ function buildFileList() {
   for (const file of rootFiles) {
     list.appendChild(buildFileItem(file, false));
   }
-
-  // Drop zone on the list itself (to move file back to root)
-  list.addEventListener('dragover', (e) => {
-    if (e.dataTransfer.types.includes('text/file-id')) {
-      // Only accept drop if the target is the list itself (not a folder/file item)
-      if (e.target === list || e.target.classList.contains('file-list')) {
-        e.preventDefault();
-        list.classList.add('drag-over-root');
-      }
-    }
-  });
-  list.addEventListener('dragleave', (e) => {
-    if (!list.contains(e.relatedTarget)) {
-      list.classList.remove('drag-over-root');
-    }
-  });
-  list.addEventListener('drop', (e) => {
-    list.classList.remove('drag-over-root');
-    if (e.target === list || e.target.classList.contains('file-list')) {
-      const fileId = e.dataTransfer.getData('text/file-id');
-      if (fileId) {
-        const file = files.find(f => f.id === fileId);
-        if (file) {
-          file.folderId = null;
-          buildFileList();
-          saveFilesToStorage();
-        }
-      }
-    }
-  });
 }
 
 function buildFileItem(file, indented) {
