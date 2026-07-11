@@ -733,20 +733,25 @@ function init() {
   document.getElementById('btn-toggle-files').addEventListener('click', () => {
     fileExplorerOpen = false;
     document.getElementById('file-explorer').classList.remove('open');
+    updateMobileBackdrop();
     saveAllToStorage();
   });
 
   document.getElementById('mobile-backdrop').addEventListener('click', () => {
     fileExplorerOpen = false;
     document.getElementById('file-explorer').classList.remove('open');
+    closeSidebarSheet();
     saveAllToStorage();
   });
 
   document.getElementById('file-explorer-tab').addEventListener('click', () => {
     fileExplorerOpen = true;
     document.getElementById('file-explorer').classList.add('open');
+    updateMobileBackdrop();
     saveAllToStorage();
   });
+
+  document.getElementById('sidebar-fab').addEventListener('click', openSidebarSheet);
 
   // Move files back to root by dropping onto the file list background
   const fileList = document.getElementById('file-list');
@@ -920,9 +925,32 @@ function saveSettings() {
 // ─────  ───────────────────────────────────────
 // SIDEBAR
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// SIDEBAR (mobile bottom-sheet)
+// ─────────────────────────────────────────────
+let sidebarSheetOpen = false;
+
+function updateMobileBackdrop() {
+  const shouldShow = fileExplorerOpen || sidebarSheetOpen;
+  document.getElementById('mobile-backdrop').classList.toggle('show', shouldShow);
+}
+
+function openSidebarSheet() {
+  sidebarSheetOpen = true;
+  document.getElementById('sidebar').classList.add('open');
+  updateMobileBackdrop();
+}
+
+function closeSidebarSheet() {
+  sidebarSheetOpen = false;
+  document.getElementById('sidebar').classList.remove('open');
+  updateMobileBackdrop();
+}
+
 function buildSidebar() {
   const sidebar = document.getElementById('sidebar');
-  sidebar.innerHTML = '<h3>Highlight As</h3>';
+  sidebar.innerHTML = '<div class="sidebar-header"><h3>Highlight As</h3><button class="sidebar-close-btn" id="btn-sidebar-close" title="Close">✕</button></div>';
+  document.getElementById('btn-sidebar-close').addEventListener('click', closeSidebarSheet);
 
   const shortcutKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
 
@@ -1115,6 +1143,7 @@ function applyHighlight(category) {
   render(); saveToStorage();
   showToast(`Applied "${category}" highlight`);
   statusLeft.textContent = `Highlighted as ${category}`;
+  closeSidebarSheet();
 }
 
 function removeHighlight() {
@@ -1126,6 +1155,7 @@ function removeHighlight() {
     render(); saveToStorage();
     showToast('Highlights removed');
     statusLeft.textContent = 'Highlights removed';
+    closeSidebarSheet();
   } else {
     showToast('No highlights in selection');
   }

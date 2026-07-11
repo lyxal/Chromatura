@@ -71,12 +71,16 @@
     <!-- Collapsed file explorer tab -->
     <button class="file-explorer-tab" id="file-explorer-tab" title="Open file explorer">📂</button>
 
-    <!-- Tapping this closes the file explorer drawer on mobile -->
+    <!-- Shared backdrop for mobile drawers; tapping it closes whichever is open -->
     <div class="mobile-backdrop" id="mobile-backdrop"></div>
 
     <div class="sidebar" id="sidebar">
       <h3>Highlight As</h3>
     </div>
+
+    <!-- Floating button to open the highlight sheet on mobile -->
+    <button class="sidebar-fab" id="sidebar-fab" title="Highlight categories">🖌️</button>
+
     <div class="editor-wrapper">
       <div class="line-numbers" id="line-numbers"></div>
       <div class="editor-container">
