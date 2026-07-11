@@ -670,6 +670,7 @@ function init() {
   document.getElementById('btn-html-export').addEventListener('click', doExportHtml);
   document.getElementById('html-export-theme').addEventListener('change', updateHtmlPreview);
   document.getElementById('html-line-numbers').addEventListener('change', updateHtmlPreview);
+  document.getElementById('html-line-wrap').addEventListener('change', updateHtmlPreview);
 
   document.getElementById('btn-export-img').addEventListener('click', openExportImageModal);
   document.getElementById('btn-img-cancel').addEventListener('click', () => document.getElementById('export-img-modal').classList.remove('open'));
@@ -1934,7 +1935,7 @@ function openExportHtmlModal() {
 
 // Builds the highlighted code as a self-contained, pre-formatted <div> using
 // inline styles only, so it can be pasted into any page without extra CSS.
-function generateHtmlExport(themeId, showLineNumbers) {
+function generateHtmlExport(themeId, showLineNumbers, wrapLines) {
   const colors = getThemeColors(themeId);
   const bgColor = '#181825';
   const fgColor = '#cdd6f4';
@@ -1979,22 +1980,26 @@ function generateHtmlExport(themeId, showLineNumbers) {
     if (pos < lineEnd) codeHtml += escapeHtml(text.slice(pos, lineEnd));
     if (codeHtml === '') codeHtml = '\u00A0'; // keep empty lines from collapsing
 
+    const codeWhiteSpace = wrapLines ? 'white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;' : 'white-space:pre;';
+
     if (showLineNumbers) {
       const numStr = String(i + 1).padStart(lineNumWidth, ' ');
-      rows += `<div style="display:flex;"><span style="flex:0 0 auto;width:${lineNumWidth}ch;padding-right:16px;text-align:right;color:${lineNumColor};user-select:none;">${numStr}</span><span style="flex:1 1 auto;">${codeHtml}</span></div>\n`;
+      rows += `<div style="display:flex;align-items:flex-start;"><span style="flex:0 0 auto;width:${lineNumWidth}ch;padding-right:16px;text-align:right;color:${lineNumColor};user-select:none;white-space:pre;">${numStr}</span><span style="flex:1 1 auto;min-width:0;${codeWhiteSpace}">${codeHtml}</span></div>\n`;
     } else {
-      rows += `<div>${codeHtml}</div>\n`;
+      rows += `<div style="${codeWhiteSpace}">${codeHtml}</div>\n`;
     }
   }
 
-  return `<div style="background:${bgColor};color:${fgColor};font-family:${fontFamily};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;border-radius:8px;white-space:pre;overflow-x:auto;">\n${rows}</div>`;
+  const containerOverflow = wrapLines ? 'overflow-x:hidden;' : 'overflow-x:auto;';
+  return `<div style="background:${bgColor};color:${fgColor};font-family:${fontFamily};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;border-radius:8px;box-sizing:border-box;width:100%;max-width:100%;${containerOverflow}">\n${rows}</div>`;
 }
 
 function updateHtmlPreview() {
   const preview = document.getElementById('html-preview');
   const themeId = document.getElementById('html-export-theme').value;
   const showLineNumbers = document.getElementById('html-line-numbers').checked;
-  preview.innerHTML = generateHtmlExport(themeId, showLineNumbers);
+  const wrapLines = document.getElementById('html-line-wrap').checked;
+  preview.innerHTML = generateHtmlExport(themeId, showLineNumbers, wrapLines);
 }
 
 function getCurrentFileBaseName() {
@@ -2010,7 +2015,8 @@ function wrapHtmlStandalone(fragment) {
 async function doCopyHtml() {
   const themeId = document.getElementById('html-export-theme').value;
   const showLineNumbers = document.getElementById('html-line-numbers').checked;
-  const fragment = generateHtmlExport(themeId, showLineNumbers);
+  const wrapLines = document.getElementById('html-line-wrap').checked;
+  const fragment = generateHtmlExport(themeId, showLineNumbers, wrapLines);
   try {
     await navigator.clipboard.writeText(fragment);
     showToast('HTML copied to clipboard!');
@@ -2022,8 +2028,9 @@ async function doCopyHtml() {
 function doExportHtml() {
   const themeId = document.getElementById('html-export-theme').value;
   const showLineNumbers = document.getElementById('html-line-numbers').checked;
+  const wrapLines = document.getElementById('html-line-wrap').checked;
   const standalone = document.getElementById('html-standalone').checked;
-  const fragment = generateHtmlExport(themeId, showLineNumbers);
+  const fragment = generateHtmlExport(themeId, showLineNumbers, wrapLines);
   const output = standalone ? wrapHtmlStandalone(fragment) : fragment;
 
   const blob = new Blob([output], { type: 'text/html' });
