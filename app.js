@@ -664,6 +664,13 @@ function init() {
   document.getElementById('btn-ui-theme-cancel').addEventListener('click', () => document.getElementById('ui-theme-modal').classList.remove('open'));
   document.getElementById('btn-ui-theme-apply').addEventListener('click', applyCustomUITheme);
 
+  document.getElementById('btn-export-html').addEventListener('click', openExportHtmlModal);
+  document.getElementById('btn-html-cancel').addEventListener('click', () => document.getElementById('export-html-modal').classList.remove('open'));
+  document.getElementById('btn-html-copy').addEventListener('click', doCopyHtml);
+  document.getElementById('btn-html-export').addEventListener('click', doExportHtml);
+  document.getElementById('html-export-theme').addEventListener('change', updateHtmlPreview);
+  document.getElementById('html-line-numbers').addEventListener('change', updateHtmlPreview);
+
   document.getElementById('btn-export-img').addEventListener('click', openExportImageModal);
   document.getElementById('btn-img-cancel').addEventListener('click', () => document.getElementById('export-img-modal').classList.remove('open'));
   document.getElementById('btn-img-export').addEventListener('click', doExportImages);
@@ -1899,6 +1906,130 @@ function renderCodeToCanvas(lines, startLineIdx, opts) {
   }
 
   return canvas;
+}
+
+// ─────────────────────────────────────────────
+// EXPORT TO HTML
+// ─────────────────────────────────────────────
+
+function openExportHtmlModal() {
+  const sel = document.getElementById('html-export-theme');
+  sel.innerHTML = '';
+  for (const [id, theme] of Object.entries(THEMES)) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = theme.name;
+    if (id === currentThemeId) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  updateHtmlPreview();
+  document.getElementById('export-html-modal').classList.add('open');
+}
+
+// Builds the highlighted code as a self-contained, pre-formatted <div> using
+// inline styles only, so it can be pasted into any page without extra CSS.
+function generateHtmlExport(themeId, showLineNumbers) {
+  const colors = getThemeColors(themeId);
+  const bgColor = '#181825';
+  const fgColor = '#cdd6f4';
+  const lineNumColor = '#6c7086';
+  const fontFamily = selectedFontFamily || "'JetBrains Mono', monospace";
+  const fontSize = 14;
+
+  const text = editorEl.value;
+  const lines = text.split('\n');
+  const lineOffsets = [];
+  let off = 0;
+  for (const line of lines) { lineOffsets.push(off); off += line.length + 1; }
+
+  const lineNumWidth = String(lines.length).length;
+
+  let rows = '';
+  for (let i = 0; i < lines.length; i++) {
+    const lineStart = lineOffsets[i];
+    const lineEnd = lineStart + lines[i].length;
+
+    const lineHighlights = highlights
+      .filter(h => h.end > lineStart && h.start < lineEnd)
+      .sort((a, b) => a.start - b.start);
+
+    let codeHtml = '';
+    let pos = lineStart;
+    for (const h of lineHighlights) {
+      const hStart = Math.max(h.start, lineStart);
+      const hEnd = Math.min(h.end, lineEnd);
+      if (hStart < pos) continue;
+      if (hStart > pos) codeHtml += escapeHtml(text.slice(pos, hStart));
+
+      const cat = categories.find(c => c.id === h.category);
+      const color = colors[h.category] || fgColor;
+      const styleParts = [`color:${color}`];
+      if (cat && cat.bold) styleParts.push('font-weight:bold');
+      if (cat && cat.italic) styleParts.push('font-style:italic');
+
+      codeHtml += `<span style="${styleParts.join(';')}">${escapeHtml(text.slice(hStart, hEnd))}</span>`;
+      pos = hEnd;
+    }
+    if (pos < lineEnd) codeHtml += escapeHtml(text.slice(pos, lineEnd));
+    if (codeHtml === '') codeHtml = '\u00A0'; // keep empty lines from collapsing
+
+    if (showLineNumbers) {
+      const numStr = String(i + 1).padStart(lineNumWidth, ' ');
+      rows += `<div style="display:flex;"><span style="flex:0 0 auto;width:${lineNumWidth}ch;padding-right:16px;text-align:right;color:${lineNumColor};user-select:none;">${numStr}</span><span style="flex:1 1 auto;">${codeHtml}</span></div>\n`;
+    } else {
+      rows += `<div>${codeHtml}</div>\n`;
+    }
+  }
+
+  return `<div style="background:${bgColor};color:${fgColor};font-family:${fontFamily};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;border-radius:8px;white-space:pre;overflow-x:auto;">\n${rows}</div>`;
+}
+
+function updateHtmlPreview() {
+  const preview = document.getElementById('html-preview');
+  const themeId = document.getElementById('html-export-theme').value;
+  const showLineNumbers = document.getElementById('html-line-numbers').checked;
+  preview.innerHTML = generateHtmlExport(themeId, showLineNumbers);
+}
+
+function getCurrentFileBaseName() {
+  const file = (typeof files !== 'undefined') ? files.find(f => f.id === activeFileId) : null;
+  const name = file ? file.name : 'chromatura-export';
+  return name.replace(/\.[^./\\]+$/, '').replace(/[^a-z0-9_-]+/gi, '-') || 'chromatura-export';
+}
+
+function wrapHtmlStandalone(fragment) {
+  return `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8" />\n<title>${getCurrentFileBaseName()}</title>\n</head>\n<body>\n${fragment}\n</body>\n</html>\n`;
+}
+
+async function doCopyHtml() {
+  const themeId = document.getElementById('html-export-theme').value;
+  const showLineNumbers = document.getElementById('html-line-numbers').checked;
+  const fragment = generateHtmlExport(themeId, showLineNumbers);
+  try {
+    await navigator.clipboard.writeText(fragment);
+    showToast('HTML copied to clipboard!');
+  } catch (err) {
+    showToast('Could not copy — try Download instead');
+  }
+}
+
+function doExportHtml() {
+  const themeId = document.getElementById('html-export-theme').value;
+  const showLineNumbers = document.getElementById('html-line-numbers').checked;
+  const standalone = document.getElementById('html-standalone').checked;
+  const fragment = generateHtmlExport(themeId, showLineNumbers);
+  const output = standalone ? wrapHtmlStandalone(fragment) : fragment;
+
+  const blob = new Blob([output], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${getCurrentFileBaseName()}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  document.getElementById('export-html-modal').classList.remove('open');
+  showToast('HTML exported!');
 }
 
 async function doExportImages() {
