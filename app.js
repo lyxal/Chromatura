@@ -735,6 +735,12 @@ function init() {
     saveAllToStorage();
   });
 
+  document.getElementById('mobile-backdrop').addEventListener('click', () => {
+    fileExplorerOpen = false;
+    document.getElementById('file-explorer').classList.remove('open');
+    saveAllToStorage();
+  });
+
   document.getElementById('file-explorer-tab').addEventListener('click', () => {
     fileExplorerOpen = true;
     document.getElementById('file-explorer').classList.add('open');

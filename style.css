@@ -333,6 +333,10 @@ header {
   display: none;
 }
 
+.mobile-backdrop {
+  display: none;
+}
+
 .file-list {
   flex: 1;
   overflow-y: auto;
@@ -1299,4 +1303,225 @@ header {
 /* ── Fold toggle spacing ── */
 .fold-toggle {
   margin-right: 8px;
+}
+
+/* ═════════════════════════════════════════════
+   MOBILE / SMALL SCREEN LAYOUT
+   ═════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  html, body {
+    height: 100%;
+    /* Avoid iOS Safari rubber-band scrolling the whole page */
+    overscroll-behavior: none;
+  }
+
+  /* ── Header ── */
+  header {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .logo {
+    font-size: 0.85rem;
+  }
+  .logo span {
+    display: none; /* subtitle takes too much room on narrow screens */
+  }
+
+  .controls {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .controls button,
+  .controls select,
+  .dropdown-trigger {
+    padding: 9px 12px;
+    font-size: 0.78rem;
+    /* comfortable touch target */
+    min-height: 38px;
+  }
+
+  /* Dropdown menus: never overflow the viewport, and allow them to scroll
+     if the content (e.g. the theme list) is taller than the screen */
+  .dropdown-menu {
+    left: 0 !important;
+    right: auto !important;
+    min-width: 0;
+    width: min(88vw, 320px);
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  /* ── Main layout: stack the highlight bar above the editor,
+     and turn the file explorer into a slide-over drawer ── */
+  .main-container {
+    flex-direction: column;
+  }
+
+  /* File Explorer becomes an overlay drawer instead of squeezing the editor */
+  .file-explorer {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 300;
+    width: 0;
+    box-shadow: none;
+    transition: width 0.2s ease, box-shadow 0.2s ease;
+  }
+  .file-explorer.open {
+    width: 78vw;
+    max-width: 280px;
+    min-width: 0;
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Floating tab to reopen the file explorer, pinned to the edge */
+  .file-explorer-tab {
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 64px;
+    border-radius: 0 8px 8px 0;
+    z-index: 200;
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Backdrop behind the open file explorer so the editor doesn't receive
+     stray taps; tapping it closes the drawer (see app.js) */
+  .mobile-backdrop {
+    display: none;
+  }
+  .file-explorer.open ~ .mobile-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 250;
+  }
+
+  /* "Highlight As" sidebar becomes a horizontally-scrolling toolbar above
+     the editor, since a fixed 200px vertical column has no room on a phone */
+  .sidebar {
+    width: 100%;
+    min-width: 0;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 6px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    border-right: none;
+    border-bottom: 1px solid var(--toolbar-border);
+    gap: 4px;
+  }
+
+  .sidebar h3 {
+    display: none; /* redundant once it's an icon/label strip */
+  }
+
+  .sidebar-btn-wrapper {
+    flex: 0 0 auto;
+  }
+
+  .highlight-btn {
+    white-space: nowrap;
+    padding: 8px 10px;
+    border-radius: 6px;
+  }
+
+  /* Shortcuts refer to keyboard modifier keys, meaningless on a touch device */
+  .shortcut {
+    display: none;
+  }
+
+  /* There's no hover on touch, so category edit/delete must stay visible */
+  .sidebar-cat-actions {
+    display: flex;
+    position: static;
+    transform: none;
+    margin-left: 2px;
+  }
+
+  .sidebar-divider {
+    width: 1px;
+    height: auto;
+    align-self: stretch;
+    margin: 0 4px;
+  }
+
+  /* ── Editor: bump font size to 16px so iOS Safari doesn't zoom in
+     when the textarea is focused ── */
+  #editor,
+  #highlight-layer {
+    font-size: 16px;
+    padding: 10px;
+  }
+  .line-numbers {
+    width: 34px;
+    min-width: 34px;
+    font-size: 0.75rem;
+    padding: 10px 4px 10px 0;
+  }
+
+  /* ── Status bar: shrink and allow horizontal scroll instead of
+     wrapping or clipping on narrow screens ── */
+  .status-bar {
+    padding: 4px 10px;
+    font-size: 0.65rem;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .status-right {
+    gap: 10px;
+  }
+
+  /* ── Modals: fit the viewport with room to spare, regardless of any
+     inline width the modal was given ── */
+  .modal {
+    width: calc(100vw - 24px) !important;
+    max-width: 460px;
+    padding: 16px;
+    max-height: 88vh;
+  }
+
+  .modal h2 {
+    font-size: 0.95rem;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Inputs/selects at 16px avoid the iOS zoom-on-focus behavior */
+  .field input[type="text"],
+  .field input[type="number"],
+  select {
+    font-size: 16px;
+  }
+
+  .color-row {
+    flex-wrap: wrap;
+  }
+
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+  .modal-actions button {
+    flex: 1 1 auto;
+    padding: 10px 12px;
+  }
+}
+
+/* Small phones (under ~380px wide) */
+@media (max-width: 400px) {
+  #status-file, #status-highlights {
+    display: none; /* keep only the cursor position visible when space is tight */
+  }
 }
