@@ -621,6 +621,7 @@ function init() {
   // ── Event listeners ──
 
   editorEl.addEventListener('input', onEditorInput);
+  editorEl.addEventListener('focus', () => setTimeout(updateFabForKeyboard, 300));
   editorEl.addEventListener('scroll', syncScroll);
   editorEl.addEventListener('keydown', onKeyDown);
   editorEl.addEventListener('mouseup', () => { updateCursorStatus(); updateIndentGuides(); });
@@ -753,6 +754,15 @@ function init() {
 
   document.getElementById('sidebar-fab').addEventListener('click', openSidebarSheet);
 
+  // On mobile, the on-screen keyboard can otherwise cover the FAB entirely.
+  // The VisualViewport shrinks by roughly the keyboard's height when it's
+  // open, so use that to lift the button clear of it.
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateFabForKeyboard);
+    window.visualViewport.addEventListener('scroll', updateFabForKeyboard);
+    updateFabForKeyboard();
+  }
+
   // Move files back to root by dropping onto the file list background
   const fileList = document.getElementById('file-list');
   fileList.addEventListener('dragover', (e) => {
@@ -868,6 +878,7 @@ function applyTheme(id) {
   for (const [key, val] of Object.entries(colors)) root.style.setProperty(`--hl-${key}`, val);
   for (const cat of categories) { if (!colors[cat.id]) { const idx = categories.indexOf(cat); root.style.setProperty(`--hl-${cat.id}`, generateColorForTheme(THEMES[id].colors, idx)); } }
   themeSelect.value = id;
+  buildSidebar(); // swatches are baked-in colors, not CSS vars — need a rebuild on every theme change
 }
 function openThemeEditor() {
   const container = document.getElementById('theme-color-rows'); container.innerHTML = ''; const colors = getActiveColors();
@@ -937,6 +948,9 @@ function updateMobileBackdrop() {
 
 function openSidebarSheet() {
   sidebarSheetOpen = true;
+  // Dismiss the keyboard — selectionStart/selectionEnd are preserved after
+  // blur, so this doesn't lose the selection, it just gets it out of the way
+  editorEl.blur();
   document.getElementById('sidebar').classList.add('open');
   updateMobileBackdrop();
 }
@@ -945,6 +959,16 @@ function closeSidebarSheet() {
   sidebarSheetOpen = false;
   document.getElementById('sidebar').classList.remove('open');
   updateMobileBackdrop();
+}
+
+function updateFabForKeyboard() {
+  const fab = document.getElementById('sidebar-fab');
+  const vv = window.visualViewport;
+  if (!fab || !vv) return;
+  // How much shorter the visible viewport is than the layout viewport is
+  // roughly how much the on-screen keyboard is covering.
+  const keyboardOffset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  fab.style.bottom = `calc(76px + ${keyboardOffset}px)`;
 }
 
 function buildSidebar() {
