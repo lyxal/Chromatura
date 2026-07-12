@@ -687,6 +687,7 @@ function init() {
     document.getElementById('html-filename').disabled = multiFile || !document.getElementById('html-filename-tab').checked;
     updateHtmlPreview();
   });
+  document.getElementById('html-multi-file-tabs').addEventListener('change', updateHtmlPreview);
 
   document.getElementById('btn-export-img').addEventListener('click', openExportImageModal);
   document.getElementById('btn-img-cancel').addEventListener('click', () => document.getElementById('export-img-modal').classList.remove('open'));
@@ -2184,12 +2185,61 @@ function generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, 
   return `<div style="width:100%;max-width:100%;box-sizing:border-box;border-radius:8px;overflow:hidden;">\n${titleBarHtml}${codeHtmlBlock}\n</div>`;
 }
 
-// Builds a zero-JavaScript tabbed viewer for several files at once: one
-// hidden radio input per file, clickable <label>s styled as tabs, and CSS
-// sibling-combinator rules (`:checked ~ …`) that show the matching panel and
-// highlight the matching tab. No <script> anywhere, so this works in any
-// context that allows raw HTML + <style> — including most Markdown renderers.
-function generateMultiFileHtmlExport(fileList, themeId, showLineNumbers, wrapLines, windowButtons) {
+// The tab-enhancement logic lives as a real function so it can be:
+//   1) called directly against the live in-app preview (via .call), and
+//   2) serialized with .toString() into the exported <script> tag,
+// which keeps the "what the export actually does" and "what the preview
+// shows" identical instead of two copies that can drift apart.
+function chromaturaEnhanceFileTabs(rootId) {
+  var root = document.getElementById(rootId);
+  if (!root) return;
+  var blocks = root.querySelectorAll('.chroma-file-block');
+  if (blocks.length < 2) return;
+
+  var first = blocks[0];
+  var bg = first.getAttribute('data-bg');
+  var fg = first.getAttribute('data-fg');
+  var barBg = first.getAttribute('data-barbg');
+  var barFg = first.getAttribute('data-barfg');
+
+  var tabBar = document.createElement('div');
+  tabBar.style.cssText = 'display:flex;gap:6px;overflow-x:auto;border-radius:8px 8px 0 0;padding:8px 10px 0;background:' + barBg + ';';
+
+  Array.prototype.forEach.call(blocks, function (block, i) {
+    var header = block.querySelector('.chroma-file-header');
+    if (header) header.style.display = 'none';
+    block.style.marginBottom = '0px';
+    block.style.borderRadius = '0 0 8px 8px';
+
+    var tab = document.createElement('div');
+    tab.textContent = block.getAttribute('data-filename');
+    tab.style.cssText = 'padding:8px 16px;border-radius:6px 6px 0 0;font-size:13px;white-space:nowrap;cursor:pointer;user-select:none;color:' + barFg + ';';
+
+    tab.addEventListener('click', function () {
+      Array.prototype.forEach.call(blocks, function (b) { b.style.display = 'none'; });
+      Array.prototype.forEach.call(tabBar.children, function (t) { t.style.background = 'transparent'; t.style.color = barFg; });
+      block.style.display = 'block';
+      tab.style.background = bg;
+      tab.style.color = fg;
+    });
+
+    if (i === 0) { tab.style.background = bg; tab.style.color = fg; }
+    else { block.style.display = 'none'; }
+
+    tabBar.appendChild(tab);
+  });
+
+  root.insertBefore(tabBar, root.firstChild);
+}
+
+// Builds a "several files, one after another" export. Each file gets its own
+// clearly-labeled block (filename header + code), stacked with spacing — this
+// works everywhere, including Markdown renderers that strip <style>/<script>
+// tags. If enableJsTabs is on, a small inline <script> is appended that
+// progressively enhances the stack into clickable tabs when JS is allowed;
+// if it's stripped or disabled, the neat stacked view is what's left, so
+// nothing ever breaks.
+function generateMultiFileHtmlExport(fileList, themeId, showLineNumbers, wrapLines, windowButtons, enableJsTabs) {
   const bgColor = '#181825';
   const fgColor = '#cdd6f4';
   const titleBarBg = '#11111b';
@@ -2198,47 +2248,40 @@ function generateMultiFileHtmlExport(fileList, themeId, showLineNumbers, wrapLin
   const fontSize = 14;
   const containerOverflow = wrapLines ? 'overflow-x:hidden;' : 'overflow-x:auto;';
 
-  // Scope everything under a unique id so multiple exports (or repeat
-  // pastes) on the same page never collide with each other's CSS.
-  const uid = 'chromatura-tabs-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-
-  let styleRules = `#${uid}{width:100%;max-width:100%;box-sizing:border-box;border-radius:8px;overflow:hidden;font-family:${fontFamily};}
-#${uid} input[type="radio"]{display:none;}
-#${uid} .chroma-tab-panel{display:none;}
-#${uid} .chroma-tab-labels{display:flex;align-items:center;gap:6px;background:${titleBarBg};padding:8px 10px 0 10px;overflow-x:auto;}
-#${uid} .chroma-tab-labels label{display:inline-block;padding:8px 16px;border-radius:6px 6px 0 0;font-size:13px;color:${titleBarTextColor};white-space:nowrap;cursor:pointer;user-select:none;}
-#${uid} .chroma-dots{display:flex;gap:8px;flex:0 0 auto;padding-right:8px;}
-#${uid} .chroma-dot{width:12px;height:12px;border-radius:50%;display:inline-block;}
-`;
+  // Scope the id so multiple exports pasted on the same page don't collide
+  const uid = 'chromatura-files-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
   const dotsHtml = windowButtons
-    ? `<div class="chroma-dots">
-      <span class="chroma-dot" style="background:#ff5f56;"></span>
-      <span class="chroma-dot" style="background:#ffbd2e;"></span>
-      <span class="chroma-dot" style="background:#27c93f;"></span>
+    ? `<div style="display:flex;gap:8px;">
+      <span style="width:12px;height:12px;border-radius:50%;background:#ff5f56;display:inline-block;"></span>
+      <span style="width:12px;height:12px;border-radius:50%;background:#ffbd2e;display:inline-block;"></span>
+      <span style="width:12px;height:12px;border-radius:50%;background:#27c93f;display:inline-block;"></span>
     </div>`
     : '';
 
-  let inputsHtml = '';
-  let labelsHtml = '';
-  let panelsHtml = '';
-
+  let sectionsHtml = '';
   fileList.forEach((file, i) => {
-    const tabId = `${uid}-tab-${i}`;
-    const panelId = `${uid}-panel-${i}`;
-
-    inputsHtml += `<input type="radio" name="${uid}-set" id="${tabId}"${i === 0 ? ' checked' : ''}>\n`;
-    labelsHtml += `<label for="${tabId}">${escapeHtml(file.name)}</label>\n`;
-
     const rows = buildHighlightedCodeRows(file.text || '', file.highlights || [], themeId, showLineNumbers, wrapLines);
-    panelsHtml += `<div class="chroma-tab-panel" id="${panelId}" style="background:${bgColor};color:${fgColor};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;box-sizing:border-box;${containerOverflow}">\n${rows}</div>\n`;
+    const marginBottom = i < fileList.length - 1 ? '16px' : '0';
 
-    styleRules += `#${uid} #${tabId}:checked ~ .chroma-tab-labels label[for="${tabId}"]{background:${bgColor};color:${fgColor};}
-#${uid} #${tabId}:checked ~ .chroma-tab-panels #${panelId}{display:block;}
-`;
+    const headerHtml = `<div class="chroma-file-header" style="display:flex;align-items:center;gap:10px;background:${titleBarBg};padding:8px 16px;box-sizing:border-box;">
+      ${dotsHtml}
+      <span style="color:${titleBarTextColor};font-size:13px;font-family:${fontFamily};white-space:nowrap;">${escapeHtml(file.name)}</span>
+    </div>`;
+
+    sectionsHtml += `<div class="chroma-file-block" data-filename="${escapeHtml(file.name)}" data-bg="${bgColor}" data-fg="${fgColor}" data-barbg="${titleBarBg}" data-barfg="${titleBarTextColor}" style="margin-bottom:${marginBottom};border-radius:8px;overflow:hidden;">
+      ${headerHtml}
+      <div style="background:${bgColor};color:${fgColor};font-family:${fontFamily};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;box-sizing:border-box;${containerOverflow}">
+        ${rows}
+      </div>
+    </div>\n`;
   });
 
-  return `<style>\n${styleRules}</style>\n<div id="${uid}">\n${inputsHtml}<div class="chroma-tab-labels">${dotsHtml}${labelsHtml}</div>\n<div class="chroma-tab-panels">\n${panelsHtml}</div>\n</div>`;
+  const scriptHtml = enableJsTabs
+    ? `<script>(${chromaturaEnhanceFileTabs.toString()})(${JSON.stringify(uid)});</script>`
+    : '';
+
+  return `<div id="${uid}" style="width:100%;max-width:100%;box-sizing:border-box;">\n${sectionsHtml}</div>\n${scriptHtml}`;
 }
 
 // Gathers the files the user picked in the multi-file checklist, making sure
@@ -2282,7 +2325,15 @@ function updateHtmlPreview() {
       preview.innerHTML = '<div style="padding:12px;color:var(--line-num);font-size:0.8rem;">Select at least one file above</div>';
       return;
     }
-    preview.innerHTML = generateMultiFileHtmlExport(selectedFiles, themeId, showLineNumbers, wrapLines, windowButtons);
+    const enableJsTabs = document.getElementById('html-multi-file-tabs').checked;
+    preview.innerHTML = generateMultiFileHtmlExport(selectedFiles, themeId, showLineNumbers, wrapLines, windowButtons, enableJsTabs);
+    // <script> tags inserted via innerHTML never execute, so demonstrate the
+    // enhancement by calling the real function directly against this DOM —
+    // this is exactly what the embedded script does in the exported file.
+    if (enableJsTabs) {
+      const rootEl = preview.querySelector('[id^="chromatura-files-"]');
+      if (rootEl) chromaturaEnhanceFileTabs(rootEl.id);
+    }
     return;
   }
 
@@ -2318,7 +2369,8 @@ function buildHtmlExportFragment() {
   if (multiFile) {
     const selectedFiles = getSelectedHtmlExportFiles();
     if (selectedFiles.length === 0) return null;
-    return generateMultiFileHtmlExport(selectedFiles, themeId, showLineNumbers, wrapLines, windowButtons);
+    const enableJsTabs = document.getElementById('html-multi-file-tabs').checked;
+    return generateMultiFileHtmlExport(selectedFiles, themeId, showLineNumbers, wrapLines, windowButtons, enableJsTabs);
   }
 
   const filenameTab = document.getElementById('html-filename-tab').checked;
