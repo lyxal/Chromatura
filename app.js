@@ -672,6 +672,12 @@ function init() {
   document.getElementById('html-export-theme').addEventListener('change', updateHtmlPreview);
   document.getElementById('html-line-numbers').addEventListener('change', updateHtmlPreview);
   document.getElementById('html-line-wrap').addEventListener('change', updateHtmlPreview);
+  document.getElementById('html-window-buttons').addEventListener('change', updateHtmlPreview);
+  document.getElementById('html-filename-tab').addEventListener('change', e => {
+    document.getElementById('html-filename').disabled = !e.target.checked;
+    updateHtmlPreview();
+  });
+  document.getElementById('html-filename').addEventListener('input', updateHtmlPreview);
 
   document.getElementById('btn-export-img').addEventListener('click', openExportImageModal);
   document.getElementById('btn-img-cancel').addEventListener('click', () => document.getElementById('export-img-modal').classList.remove('open'));
@@ -681,6 +687,12 @@ function init() {
   document.getElementById('img-export-theme').addEventListener('change', updateImgPreview);
   document.getElementById('img-padding').addEventListener('input', updateImgPreview);
   document.getElementById('img-line-numbers').addEventListener('change', updateImgPreview);
+  document.getElementById('img-window-buttons').addEventListener('change', updateImgPreview);
+  document.getElementById('img-filename-tab').addEventListener('change', e => {
+    document.getElementById('img-filename').disabled = !e.target.checked;
+    updateImgPreview();
+  });
+  document.getElementById('img-filename').addEventListener('input', updateImgPreview);
   document.getElementById('img-scale').addEventListener('input', e => {
     document.getElementById('img-scale-display').textContent = e.target.value + 'x';
   });
@@ -1756,6 +1768,7 @@ function openExportImageModal() {
   document.getElementById('img-lines-per').value = totalLines;
   document.getElementById('img-all-lines').checked = true;
   document.getElementById('img-lines-per').disabled = true;
+  document.getElementById('img-filename').value = getCurrentFileFullName();
   updateImgPageInfo();
   updateImgPreview();
 
@@ -1792,6 +1805,9 @@ function updateImgPreview() {
     showLineNumbers: document.getElementById('img-line-numbers').checked,
     themeId: document.getElementById('img-export-theme').value,
     maxWidth: 460,
+    windowButtons: document.getElementById('img-window-buttons').checked,
+    filenameTab: document.getElementById('img-filename-tab').checked,
+    filename: document.getElementById('img-filename').value,
   });
   preview.appendChild(canvas);
 }
@@ -1812,6 +1828,20 @@ function measureTextWidth(ctx, text) {
   return ctx.measureText(text).width;
 }
 
+function roundedRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
 function renderCodeToCanvas(lines, startLineIdx, opts) {
   const {
     scale = 2,
@@ -1819,12 +1849,17 @@ function renderCodeToCanvas(lines, startLineIdx, opts) {
     showLineNumbers = true,
     themeId = currentThemeId,
     maxWidth = null,
+    windowButtons = false,
+    filenameTab = false,
+    filename = '',
   } = opts;
 
   const colors = getThemeColors(themeId);
   const bgColor = '#181825'; // editor bg
   const fgColor = '#cdd6f4'; // editor fg
   const lineNumColor = '#6c7086';
+  const titleBarBg = '#11111b';
+  const titleBarTextColor = '#a6adc8';
 
   // Create a temp canvas to measure
   const tempCanvas = document.createElement('canvas');
@@ -1837,6 +1872,10 @@ function renderCodeToCanvas(lines, startLineIdx, opts) {
   const lineHeight = fontSize * editorLineHeight;
 
   tempCtx.font = `${fontSize}px ${fontFamily}`;
+
+  const showTitleBar = windowButtons || filenameTab;
+  const titleBarHeight = showTitleBar ? 40 * scale : 0;
+  const titleFontSize = 13 * scale;
 
   // Calculate line number width
   const maxLineNum = startLineIdx + lines.length;
@@ -1852,14 +1891,25 @@ function renderCodeToCanvas(lines, startLineIdx, opts) {
     if (w > maxContentWidth) maxContentWidth = w;
   }
 
-  const contentWidth = lineNumWidth + maxContentWidth + padding * 2 * scale;
+  // Make sure the title bar's own content (dots + filename tab) has room too
+  tempCtx.font = `${titleFontSize}px ${fontFamily}`;
+  let titleBarContentWidth = 0;
+  if (showTitleBar) {
+    if (windowButtons) titleBarContentWidth += 3 * (12 * scale) + 2 * (8 * scale) + 20 * scale;
+    if (filenameTab) titleBarContentWidth += measureTextWidth(tempCtx, filename || 'untitled') + 48 * scale;
+  }
+
+  const contentWidth = Math.max(
+    lineNumWidth + maxContentWidth + padding * 2 * scale,
+    titleBarContentWidth + padding * scale
+  );
   let canvasWidth = contentWidth;
 
   if (maxWidth) {
     canvasWidth = Math.min(canvasWidth, maxWidth * scale);
   }
 
-  const canvasHeight = lines.length * lineHeight + padding * 2 * scale;
+  const canvasHeight = lines.length * lineHeight + padding * 2 * scale + titleBarHeight;
 
   const canvas = document.createElement('canvas');
   canvas.width = canvasWidth;
@@ -1887,8 +1937,48 @@ function renderCodeToCanvas(lines, startLineIdx, opts) {
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
+  // Title bar (window buttons + filename tab)
+  if (showTitleBar) {
+    ctx.fillStyle = titleBarBg;
+    ctx.fillRect(0, 0, canvasWidth, titleBarHeight);
+
+    if (windowButtons) {
+      const dotRadius = 6 * scale;
+      const dotY = titleBarHeight / 2;
+      const dotColors = ['#ff5f56', '#ffbd2e', '#27c93f'];
+      const dotSpacing = (dotRadius * 2) + 8 * scale;
+      let dotX = 20 * scale + dotRadius;
+      for (const color of dotColors) {
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, dotRadius, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        dotX += dotSpacing;
+      }
+    }
+
+    if (filenameTab) {
+      ctx.font = `${titleFontSize}px ${fontFamily}`;
+      const label = filename || 'untitled';
+      const textWidth = measureTextWidth(ctx, label);
+      const tabPaddingX = 16 * scale;
+      const tabWidth = textWidth + tabPaddingX * 2;
+      const tabHeight = titleBarHeight - 12 * scale;
+      const tabX = (canvasWidth - tabWidth) / 2;
+      const tabY = (titleBarHeight - tabHeight) / 2;
+
+      roundedRectPath(ctx, tabX, tabY, tabWidth, tabHeight, 5 * scale);
+      ctx.fillStyle = bgColor;
+      ctx.fill();
+
+      ctx.fillStyle = titleBarTextColor;
+      ctx.textAlign = 'left';
+      ctx.fillText(label, tabX + tabPaddingX, tabY + tabHeight / 2 + titleFontSize * 0.35);
+    }
+  }
+
   const padX = padding * scale;
-  const padY = padding * scale;
+  const padY = padding * scale + titleBarHeight;
 
   // Compute character offsets for the full text so we can map highlights
   const fullText = editorEl.value;
@@ -1983,17 +2073,20 @@ function openExportHtmlModal() {
     if (id === currentThemeId) opt.selected = true;
     sel.appendChild(opt);
   }
+  document.getElementById('html-filename').value = getCurrentFileFullName();
   updateHtmlPreview();
   document.getElementById('export-html-modal').classList.add('open');
 }
 
 // Builds the highlighted code as a self-contained, pre-formatted <div> using
 // inline styles only, so it can be pasted into any page without extra CSS.
-function generateHtmlExport(themeId, showLineNumbers, wrapLines) {
+function generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename) {
   const colors = getThemeColors(themeId);
   const bgColor = '#181825';
   const fgColor = '#cdd6f4';
   const lineNumColor = '#6c7086';
+  const titleBarBg = '#11111b';
+  const titleBarTextColor = '#a6adc8';
   const fontFamily = selectedFontFamily || "'JetBrains Mono', monospace";
   const fontSize = 14;
 
@@ -2045,7 +2138,32 @@ function generateHtmlExport(themeId, showLineNumbers, wrapLines) {
   }
 
   const containerOverflow = wrapLines ? 'overflow-x:hidden;' : 'overflow-x:auto;';
-  return `<div style="background:${bgColor};color:${fgColor};font-family:${fontFamily};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;border-radius:8px;box-sizing:border-box;width:100%;max-width:100%;${containerOverflow}">\n${rows}</div>`;
+  const showTitleBar = windowButtons || filenameTab;
+
+  let titleBarHtml = '';
+  if (showTitleBar) {
+    const dotsHtml = windowButtons
+      ? `<div style="display:flex;gap:8px;">
+        <span style="width:12px;height:12px;border-radius:50%;background:#ff5f56;display:inline-block;"></span>
+        <span style="width:12px;height:12px;border-radius:50%;background:#ffbd2e;display:inline-block;"></span>
+        <span style="width:12px;height:12px;border-radius:50%;background:#27c93f;display:inline-block;"></span>
+      </div>`
+      : '<div></div>';
+
+    const tabHtml = filenameTab
+      ? `<span style="background:${bgColor};color:${titleBarTextColor};padding:5px 14px;border-radius:5px;font-size:13px;font-family:${fontFamily};white-space:nowrap;">${escapeHtml(filename || 'untitled')}</span>`
+      : '';
+
+    titleBarHtml = `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;background:${titleBarBg};padding:10px 16px;box-sizing:border-box;">
+      ${dotsHtml}
+      <div style="display:flex;justify-content:center;">${tabHtml}</div>
+      <div></div>
+    </div>\n`;
+  }
+
+  const codeHtmlBlock = `<div style="background:${bgColor};color:${fgColor};font-family:${fontFamily};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;box-sizing:border-box;width:100%;max-width:100%;${containerOverflow}">\n${rows}</div>`;
+
+  return `<div style="width:100%;max-width:100%;box-sizing:border-box;border-radius:8px;overflow:hidden;">\n${titleBarHtml}${codeHtmlBlock}\n</div>`;
 }
 
 function updateHtmlPreview() {
@@ -2053,7 +2171,15 @@ function updateHtmlPreview() {
   const themeId = document.getElementById('html-export-theme').value;
   const showLineNumbers = document.getElementById('html-line-numbers').checked;
   const wrapLines = document.getElementById('html-line-wrap').checked;
-  preview.innerHTML = generateHtmlExport(themeId, showLineNumbers, wrapLines);
+  const windowButtons = document.getElementById('html-window-buttons').checked;
+  const filenameTab = document.getElementById('html-filename-tab').checked;
+  const filename = document.getElementById('html-filename').value;
+  preview.innerHTML = generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename);
+}
+
+function getCurrentFileFullName() {
+  const file = (typeof files !== 'undefined') ? files.find(f => f.id === activeFileId) : null;
+  return file ? file.name : 'untitled.txt';
 }
 
 function getCurrentFileBaseName() {
@@ -2070,7 +2196,10 @@ async function doCopyHtml() {
   const themeId = document.getElementById('html-export-theme').value;
   const showLineNumbers = document.getElementById('html-line-numbers').checked;
   const wrapLines = document.getElementById('html-line-wrap').checked;
-  const fragment = generateHtmlExport(themeId, showLineNumbers, wrapLines);
+  const windowButtons = document.getElementById('html-window-buttons').checked;
+  const filenameTab = document.getElementById('html-filename-tab').checked;
+  const filename = document.getElementById('html-filename').value;
+  const fragment = generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename);
   try {
     await navigator.clipboard.writeText(fragment);
     showToast('HTML copied to clipboard!');
@@ -2083,8 +2212,11 @@ function doExportHtml() {
   const themeId = document.getElementById('html-export-theme').value;
   const showLineNumbers = document.getElementById('html-line-numbers').checked;
   const wrapLines = document.getElementById('html-line-wrap').checked;
+  const windowButtons = document.getElementById('html-window-buttons').checked;
+  const filenameTab = document.getElementById('html-filename-tab').checked;
+  const filename = document.getElementById('html-filename').value;
   const standalone = document.getElementById('html-standalone').checked;
-  const fragment = generateHtmlExport(themeId, showLineNumbers, wrapLines);
+  const fragment = generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename);
   const output = standalone ? wrapHtmlStandalone(fragment) : fragment;
 
   const blob = new Blob([output], { type: 'text/html' });
@@ -2108,6 +2240,9 @@ async function doExportImages() {
   const padding = parseInt(document.getElementById('img-padding').value) || 32;
   const showLineNumbers = document.getElementById('img-line-numbers').checked;
   const themeId = document.getElementById('img-export-theme').value;
+  const windowButtons = document.getElementById('img-window-buttons').checked;
+  const filenameTab = document.getElementById('img-filename-tab').checked;
+  const filename = document.getElementById('img-filename').value;
 
   const pages = Math.ceil(totalLines / linesPerPage);
 
@@ -2136,6 +2271,9 @@ async function doExportImages() {
       padding,
       showLineNumbers,
       themeId,
+      windowButtons,
+      filenameTab,
+      filename,
     });
 
     // Convert to blob and download

@@ -265,6 +265,19 @@
         </label>
       </div>
       <div class="field">
+        <label>Window chrome</label>
+        <label
+          style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--editor-fg);text-transform:none;letter-spacing:0;cursor:pointer;margin-bottom:6px;">
+          <input type="checkbox" id="img-window-buttons" /> Show close/minimize/maximize buttons
+        </label>
+        <label
+          style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--editor-fg);text-transform:none;letter-spacing:0;cursor:pointer;">
+          <input type="checkbox" id="img-filename-tab" /> Show filename tab
+        </label>
+        <input type="text" id="img-filename" placeholder="filename.js" disabled
+          style="width:100%;margin-top:6px;" />
+      </div>
+      <div class="field">
         <label>Preview</label>
         <div id="img-preview"
           style="max-height:200px;overflow:auto;background:var(--editor-bg);border-radius:4px;border:1px solid var(--toolbar-border);padding:8px;">
@@ -307,6 +320,19 @@
           <input type="checkbox" id="html-standalone" /> Wrap downloaded file in full &lt;html&gt; page (off = just
           the div, for pasting into an existing page)
         </label>
+      </div>
+      <div class="field">
+        <label>Window chrome</label>
+        <label
+          style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--editor-fg);text-transform:none;letter-spacing:0;cursor:pointer;margin-bottom:6px;">
+          <input type="checkbox" id="html-window-buttons" /> Show close/minimize/maximize buttons
+        </label>
+        <label
+          style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--editor-fg);text-transform:none;letter-spacing:0;cursor:pointer;">
+          <input type="checkbox" id="html-filename-tab" /> Show filename tab
+        </label>
+        <input type="text" id="html-filename" placeholder="filename.js" disabled
+          style="width:100%;margin-top:6px;" />
       </div>
       <div class="field">
         <label>Preview</label>
