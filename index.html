@@ -335,6 +335,16 @@
           style="width:100%;margin-top:6px;" />
       </div>
       <div class="field">
+        <label>Multiple files</label>
+        <label
+          style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--editor-fg);text-transform:none;letter-spacing:0;cursor:pointer;">
+          <input type="checkbox" id="html-multi-file" /> Export several files as clickable tabs (pure CSS,
+          zero JavaScript — works pasted into Markdown, blogs, docs, anywhere raw HTML is allowed)
+        </label>
+        <div id="html-multi-file-list" style="display:none;max-height:150px;overflow:auto;margin-top:8px;border:1px solid var(--toolbar-border);border-radius:4px;padding:6px 10px;">
+        </div>
+      </div>
+      <div class="field">
         <label>Preview</label>
         <div id="html-preview"
           style="max-height:220px;overflow:auto;background:var(--editor-bg);border-radius:4px;border:1px solid var(--toolbar-border);padding:8px;">

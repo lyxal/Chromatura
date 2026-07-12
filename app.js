@@ -678,6 +678,15 @@ function init() {
     updateHtmlPreview();
   });
   document.getElementById('html-filename').addEventListener('input', updateHtmlPreview);
+  document.getElementById('html-multi-file').addEventListener('change', e => {
+    const multiFile = e.target.checked;
+    document.getElementById('html-multi-file-list').style.display = multiFile ? 'block' : 'none';
+    // Tabs already show each filename, so the single centered filename tab
+    // is redundant — disable it (without losing whatever value/state it had)
+    document.getElementById('html-filename-tab').disabled = multiFile;
+    document.getElementById('html-filename').disabled = multiFile || !document.getElementById('html-filename-tab').checked;
+    updateHtmlPreview();
+  });
 
   document.getElementById('btn-export-img').addEventListener('click', openExportImageModal);
   document.getElementById('btn-img-cancel').addEventListener('click', () => document.getElementById('export-img-modal').classList.remove('open'));
@@ -2074,23 +2083,18 @@ function openExportHtmlModal() {
     sel.appendChild(opt);
   }
   document.getElementById('html-filename').value = getCurrentFileFullName();
+  populateHtmlMultiFileList();
   updateHtmlPreview();
   document.getElementById('export-html-modal').classList.add('open');
 }
 
-// Builds the highlighted code as a self-contained, pre-formatted <div> using
-// inline styles only, so it can be pasted into any page without extra CSS.
-function generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename) {
+// Builds the highlighted <div> rows for one file's worth of code — shared by
+// both the single-file export and each tab panel in the multi-file export.
+function buildHighlightedCodeRows(text, fileHighlights, themeId, showLineNumbers, wrapLines) {
   const colors = getThemeColors(themeId);
-  const bgColor = '#181825';
   const fgColor = '#cdd6f4';
   const lineNumColor = '#6c7086';
-  const titleBarBg = '#11111b';
-  const titleBarTextColor = '#a6adc8';
-  const fontFamily = selectedFontFamily || "'JetBrains Mono', monospace";
-  const fontSize = 14;
 
-  const text = editorEl.value;
   const lines = text.split('\n');
   const lineOffsets = [];
   let off = 0;
@@ -2103,7 +2107,7 @@ function generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, 
     const lineStart = lineOffsets[i];
     const lineEnd = lineStart + lines[i].length;
 
-    const lineHighlights = highlights
+    const lineHighlights = fileHighlights
       .filter(h => h.end > lineStart && h.start < lineEnd)
       .sort((a, b) => a.start - b.start);
 
@@ -2136,6 +2140,20 @@ function generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, 
       rows += `<div style="${codeWhiteSpace}">${codeHtml}</div>\n`;
     }
   }
+  return rows;
+}
+
+// Builds the highlighted code as a self-contained, pre-formatted <div> using
+// inline styles only, so it can be pasted into any page without extra CSS.
+function generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename) {
+  const bgColor = '#181825';
+  const fgColor = '#cdd6f4';
+  const titleBarBg = '#11111b';
+  const titleBarTextColor = '#a6adc8';
+  const fontFamily = selectedFontFamily || "'JetBrains Mono', monospace";
+  const fontSize = 14;
+
+  const rows = buildHighlightedCodeRows(editorEl.value, highlights, themeId, showLineNumbers, wrapLines);
 
   const containerOverflow = wrapLines ? 'overflow-x:hidden;' : 'overflow-x:auto;';
   const showTitleBar = windowButtons || filenameTab;
@@ -2166,12 +2184,108 @@ function generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, 
   return `<div style="width:100%;max-width:100%;box-sizing:border-box;border-radius:8px;overflow:hidden;">\n${titleBarHtml}${codeHtmlBlock}\n</div>`;
 }
 
+// Builds a zero-JavaScript tabbed viewer for several files at once: one
+// hidden radio input per file, clickable <label>s styled as tabs, and CSS
+// sibling-combinator rules (`:checked ~ …`) that show the matching panel and
+// highlight the matching tab. No <script> anywhere, so this works in any
+// context that allows raw HTML + <style> — including most Markdown renderers.
+function generateMultiFileHtmlExport(fileList, themeId, showLineNumbers, wrapLines, windowButtons) {
+  const bgColor = '#181825';
+  const fgColor = '#cdd6f4';
+  const titleBarBg = '#11111b';
+  const titleBarTextColor = '#a6adc8';
+  const fontFamily = selectedFontFamily || "'JetBrains Mono', monospace";
+  const fontSize = 14;
+  const containerOverflow = wrapLines ? 'overflow-x:hidden;' : 'overflow-x:auto;';
+
+  // Scope everything under a unique id so multiple exports (or repeat
+  // pastes) on the same page never collide with each other's CSS.
+  const uid = 'chromatura-tabs-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  let styleRules = `#${uid}{width:100%;max-width:100%;box-sizing:border-box;border-radius:8px;overflow:hidden;font-family:${fontFamily};}
+#${uid} input[type="radio"]{display:none;}
+#${uid} .chroma-tab-panel{display:none;}
+#${uid} .chroma-tab-labels{display:flex;align-items:center;gap:6px;background:${titleBarBg};padding:8px 10px 0 10px;overflow-x:auto;}
+#${uid} .chroma-tab-labels label{display:inline-block;padding:8px 16px;border-radius:6px 6px 0 0;font-size:13px;color:${titleBarTextColor};white-space:nowrap;cursor:pointer;user-select:none;}
+#${uid} .chroma-dots{display:flex;gap:8px;flex:0 0 auto;padding-right:8px;}
+#${uid} .chroma-dot{width:12px;height:12px;border-radius:50%;display:inline-block;}
+`;
+
+  const dotsHtml = windowButtons
+    ? `<div class="chroma-dots">
+      <span class="chroma-dot" style="background:#ff5f56;"></span>
+      <span class="chroma-dot" style="background:#ffbd2e;"></span>
+      <span class="chroma-dot" style="background:#27c93f;"></span>
+    </div>`
+    : '';
+
+  let inputsHtml = '';
+  let labelsHtml = '';
+  let panelsHtml = '';
+
+  fileList.forEach((file, i) => {
+    const tabId = `${uid}-tab-${i}`;
+    const panelId = `${uid}-panel-${i}`;
+
+    inputsHtml += `<input type="radio" name="${uid}-set" id="${tabId}"${i === 0 ? ' checked' : ''}>\n`;
+    labelsHtml += `<label for="${tabId}">${escapeHtml(file.name)}</label>\n`;
+
+    const rows = buildHighlightedCodeRows(file.text || '', file.highlights || [], themeId, showLineNumbers, wrapLines);
+    panelsHtml += `<div class="chroma-tab-panel" id="${panelId}" style="background:${bgColor};color:${fgColor};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;box-sizing:border-box;${containerOverflow}">\n${rows}</div>\n`;
+
+    styleRules += `#${uid} #${tabId}:checked ~ .chroma-tab-labels label[for="${tabId}"]{background:${bgColor};color:${fgColor};}
+#${uid} #${tabId}:checked ~ .chroma-tab-panels #${panelId}{display:block;}
+`;
+  });
+
+  return `<style>\n${styleRules}</style>\n<div id="${uid}">\n${inputsHtml}<div class="chroma-tab-labels">${dotsHtml}${labelsHtml}</div>\n<div class="chroma-tab-panels">\n${panelsHtml}</div>\n</div>`;
+}
+
+// Gathers the files the user picked in the multi-file checklist, making sure
+// the currently-open file's in-memory edits are flushed first.
+function getSelectedHtmlExportFiles() {
+  saveCurrentFileState();
+  const checked = Array.from(document.querySelectorAll('#html-multi-file-list input[type="checkbox"]:checked'));
+  return checked
+    .map(cb => files.find(f => f.id === cb.dataset.fileId))
+    .filter(Boolean);
+}
+
+function populateHtmlMultiFileList() {
+  const list = document.getElementById('html-multi-file-list');
+  list.innerHTML = '';
+  for (const file of files) {
+    const row = document.createElement('label');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--editor-fg);text-transform:none;letter-spacing:0;cursor:pointer;padding:3px 0;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.dataset.fileId = file.id;
+    cb.addEventListener('change', updateHtmlPreview);
+    row.appendChild(cb);
+    row.appendChild(document.createTextNode(file.name));
+    list.appendChild(row);
+  }
+}
+
 function updateHtmlPreview() {
   const preview = document.getElementById('html-preview');
   const themeId = document.getElementById('html-export-theme').value;
   const showLineNumbers = document.getElementById('html-line-numbers').checked;
   const wrapLines = document.getElementById('html-line-wrap').checked;
   const windowButtons = document.getElementById('html-window-buttons').checked;
+  const multiFile = document.getElementById('html-multi-file').checked;
+
+  if (multiFile) {
+    const selectedFiles = getSelectedHtmlExportFiles();
+    if (selectedFiles.length === 0) {
+      preview.innerHTML = '<div style="padding:12px;color:var(--line-num);font-size:0.8rem;">Select at least one file above</div>';
+      return;
+    }
+    preview.innerHTML = generateMultiFileHtmlExport(selectedFiles, themeId, showLineNumbers, wrapLines, windowButtons);
+    return;
+  }
+
   const filenameTab = document.getElementById('html-filename-tab').checked;
   const filename = document.getElementById('html-filename').value;
   preview.innerHTML = generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename);
@@ -2192,14 +2306,29 @@ function wrapHtmlStandalone(fragment) {
   return `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8" />\n<title>${getCurrentFileBaseName()}</title>\n</head>\n<body>\n${fragment}\n</body>\n</html>\n`;
 }
 
-async function doCopyHtml() {
+// Produces the actual export fragment, branching on whether multi-file tabs
+// mode is on — shared by both the copy-to-clipboard and download actions.
+function buildHtmlExportFragment() {
   const themeId = document.getElementById('html-export-theme').value;
   const showLineNumbers = document.getElementById('html-line-numbers').checked;
   const wrapLines = document.getElementById('html-line-wrap').checked;
   const windowButtons = document.getElementById('html-window-buttons').checked;
+  const multiFile = document.getElementById('html-multi-file').checked;
+
+  if (multiFile) {
+    const selectedFiles = getSelectedHtmlExportFiles();
+    if (selectedFiles.length === 0) return null;
+    return generateMultiFileHtmlExport(selectedFiles, themeId, showLineNumbers, wrapLines, windowButtons);
+  }
+
   const filenameTab = document.getElementById('html-filename-tab').checked;
   const filename = document.getElementById('html-filename').value;
-  const fragment = generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename);
+  return generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename);
+}
+
+async function doCopyHtml() {
+  const fragment = buildHtmlExportFragment();
+  if (fragment === null) { showToast('Select at least one file'); return; }
   try {
     await navigator.clipboard.writeText(fragment);
     showToast('HTML copied to clipboard!');
@@ -2209,21 +2338,17 @@ async function doCopyHtml() {
 }
 
 function doExportHtml() {
-  const themeId = document.getElementById('html-export-theme').value;
-  const showLineNumbers = document.getElementById('html-line-numbers').checked;
-  const wrapLines = document.getElementById('html-line-wrap').checked;
-  const windowButtons = document.getElementById('html-window-buttons').checked;
-  const filenameTab = document.getElementById('html-filename-tab').checked;
-  const filename = document.getElementById('html-filename').value;
+  const fragment = buildHtmlExportFragment();
+  if (fragment === null) { showToast('Select at least one file'); return; }
   const standalone = document.getElementById('html-standalone').checked;
-  const fragment = generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename);
+  const multiFile = document.getElementById('html-multi-file').checked;
   const output = standalone ? wrapHtmlStandalone(fragment) : fragment;
 
   const blob = new Blob([output], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${getCurrentFileBaseName()}.html`;
+  a.download = multiFile ? 'chromatura-tabs-export.html' : `${getCurrentFileBaseName()}.html`;
   a.click();
   URL.revokeObjectURL(url);
 
