@@ -2144,6 +2144,17 @@ function buildHighlightedCodeRows(text, fileHighlights, themeId, showLineNumbers
   return rows;
 }
 
+// Our template literals are indented for readability in the app.js source,
+// but a line starting with 4+ spaces (or a tab) is CommonMark's rule for an
+// indented code block — plenty of notes apps and Markdown renderers honor
+// that even for pasted/raw HTML, which breaks out of HTML parsing entirely
+// partway through the output. Left-trimming every line (never touching the
+// actual code content, which always lives mid-line inside a single-line div,
+// never at line-start) sidesteps that everywhere, regardless of nesting depth.
+function stripLeadingIndentation(html) {
+  return html.split('\n').map(line => line.replace(/^[ \t]+/, '')).join('\n');
+}
+
 // Builds the highlighted code as a self-contained, pre-formatted <div> using
 // inline styles only, so it can be pasted into any page without extra CSS.
 function generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename) {
@@ -2182,7 +2193,7 @@ function generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, 
 
   const codeHtmlBlock = `<div style="background:${bgColor};color:${fgColor};font-family:${fontFamily};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;box-sizing:border-box;width:100%;max-width:100%;${containerOverflow}">\n${rows}</div>`;
 
-  return `<div style="width:100%;max-width:100%;box-sizing:border-box;border-radius:8px;overflow:hidden;">\n${titleBarHtml}${codeHtmlBlock}\n</div>`;
+  return stripLeadingIndentation(`<div style="width:100%;max-width:100%;box-sizing:border-box;border-radius:8px;overflow:hidden;">\n${titleBarHtml}${codeHtmlBlock}\n</div>`);
 }
 
 // The tab-enhancement logic lives as a real function so it can be:
@@ -2281,7 +2292,7 @@ function generateMultiFileHtmlExport(fileList, themeId, showLineNumbers, wrapLin
     ? `<script>(${chromaturaEnhanceFileTabs.toString()})(${JSON.stringify(uid)});</script>`
     : '';
 
-  return `<div id="${uid}" style="width:100%;max-width:100%;box-sizing:border-box;">\n${sectionsHtml}</div>\n${scriptHtml}`;
+  return stripLeadingIndentation(`<div id="${uid}" style="width:100%;max-width:100%;box-sizing:border-box;">\n${sectionsHtml}</div>\n${scriptHtml}`);
 }
 
 // Gathers the files the user picked in the multi-file checklist, making sure
