@@ -688,14 +688,6 @@ function init() {
     updateHtmlPreview();
   });
   document.getElementById('html-multi-file-tabs').addEventListener('change', updateHtmlPreview);
-  document.getElementById('html-github-safe').addEventListener('change', e => {
-    const githubSafe = e.target.checked;
-    document.getElementById('html-styled-options').style.display = githubSafe ? 'none' : '';
-    document.getElementById('html-multi-file-tabs-label').style.display = githubSafe ? 'none' : 'flex';
-    document.getElementById('btn-html-copy').textContent = githubSafe ? '📋 Copy Markdown' : '📋 Copy HTML';
-    document.getElementById('btn-html-export').textContent = githubSafe ? 'Download .md' : 'Download';
-    updateHtmlPreview();
-  });
 
   document.getElementById('btn-export-img').addEventListener('click', openExportImageModal);
   document.getElementById('btn-img-cancel').addEventListener('click', () => document.getElementById('export-img-modal').classList.remove('open'));
@@ -2097,29 +2089,23 @@ function openExportHtmlModal() {
   document.getElementById('export-html-modal').classList.add('open');
 }
 
-// Builds the highlighted <div> rows for one file's worth of code — shared by
-// both the single-file export and each tab panel in the multi-file export.
+// Builds the highlighted <pre> lines for one file's worth of code.
+// Every exported span carries both color="..." and style="...".
 function buildHighlightedCodeRows(text, fileHighlights, themeId, showLineNumbers, wrapLines) {
   const colors = getThemeColors(themeId);
   const fgColor = '#cdd6f4';
   const lineNumColor = '#6c7086';
-
   const lines = text.split('\n');
   const lineOffsets = [];
   let off = 0;
   for (const line of lines) { lineOffsets.push(off); off += line.length + 1; }
-
   const lineNumWidth = String(lines.length).length;
-
-  let rows = '';
+  const codeWhiteSpace = wrapLines ? 'white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;' : 'white-space:pre;';
+  const outLines = [];
   for (let i = 0; i < lines.length; i++) {
     const lineStart = lineOffsets[i];
     const lineEnd = lineStart + lines[i].length;
-
-    const lineHighlights = fileHighlights
-      .filter(h => h.end > lineStart && h.start < lineEnd)
-      .sort((a, b) => a.start - b.start);
-
+    const lineHighlights = fileHighlights.filter(h => h.end > lineStart && h.start < lineEnd).sort((a, b) => a.start - b.start);
     let codeHtml = '';
     let pos = lineStart;
     for (const h of lineHighlights) {
@@ -2127,29 +2113,27 @@ function buildHighlightedCodeRows(text, fileHighlights, themeId, showLineNumbers
       const hEnd = Math.min(h.end, lineEnd);
       if (hStart < pos) continue;
       if (hStart > pos) codeHtml += escapeHtml(text.slice(pos, hStart));
-
       const cat = categories.find(c => c.id === h.category);
       const color = colors[h.category] || fgColor;
       const styleParts = [`color:${color}`];
       if (cat && cat.bold) styleParts.push('font-weight:bold');
       if (cat && cat.italic) styleParts.push('font-style:italic');
-
-      codeHtml += `<span style="${styleParts.join(';')}">${escapeHtml(text.slice(hStart, hEnd))}</span>`;
+      const styleString = styleParts.join(';');
+      codeHtml += `<span color="${color}" style="${styleString}">${escapeHtml(text.slice(hStart, hEnd))}</span>`;
       pos = hEnd;
     }
     if (pos < lineEnd) codeHtml += escapeHtml(text.slice(pos, lineEnd));
-    if (codeHtml === '') codeHtml = '\u00A0'; // keep empty lines from collapsing
-
-    const codeWhiteSpace = wrapLines ? 'white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;' : 'white-space:pre;';
-
+    if (codeHtml === '') codeHtml = '\u00A0';
+    const codeSpan = `<span color="${fgColor}" style="flex:1 1 auto;min-width:0;color:${fgColor};${codeWhiteSpace}">${codeHtml}</span>`;
     if (showLineNumbers) {
       const numStr = String(i + 1).padStart(lineNumWidth, ' ');
-      rows += `<div style="display:flex;align-items:flex-start;"><span style="flex:0 0 auto;width:${lineNumWidth}ch;padding-right:16px;text-align:right;color:${lineNumColor};user-select:none;white-space:pre;">${numStr}</span><span style="flex:1 1 auto;min-width:0;${codeWhiteSpace}">${codeHtml}</span></div>\n`;
+      const lineNumSpan = `<span color="${lineNumColor}" style="flex:0 0 auto;width:${lineNumWidth}ch;padding-right:16px;text-align:right;color:${lineNumColor};user-select:none;white-space:pre;">${numStr}</span>`;
+      outLines.push(`${lineNumSpan} ${codeSpan}`);
     } else {
-      rows += `<div style="${codeWhiteSpace}">${codeHtml}</div>\n`;
+      outLines.push(codeSpan);
     }
   }
-  return rows;
+  return outLines.join('\n');
 }
 
 // Our template literals are indented for readability in the app.js source,
@@ -2173,8 +2157,7 @@ function stripLeadingIndentation(html) {
     .join('\n');
 }
 
-// Builds the highlighted code as a self-contained, pre-formatted <div> using
-// inline styles only, so it can be pasted into any page without extra CSS.
+// Builds the highlighted code as a self-contained <pre>, so GitHub renders it monospaced.
 function generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename) {
   const bgColor = '#181825';
   const fgColor = '#cdd6f4';
@@ -2182,35 +2165,23 @@ function generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, 
   const titleBarTextColor = '#a6adc8';
   const fontFamily = selectedFontFamily || "'JetBrains Mono', monospace";
   const fontSize = 14;
-
   const rows = buildHighlightedCodeRows(editorEl.value, highlights, themeId, showLineNumbers, wrapLines);
-
   const containerOverflow = wrapLines ? 'overflow-x:hidden;' : 'overflow-x:auto;';
   const showTitleBar = windowButtons || filenameTab;
-
-  let titleBarHtml = '';
-  if (showTitleBar) {
-    const dotsHtml = windowButtons
-      ? `<div style="display:flex;gap:8px;">
-        <span style="width:12px;height:12px;border-radius:50%;background:#ff5f56;display:inline-block;"></span>
-        <span style="width:12px;height:12px;border-radius:50%;background:#ffbd2e;display:inline-block;"></span>
-        <span style="width:12px;height:12px;border-radius:50%;background:#27c93f;display:inline-block;"></span>
-      </div>`
-      : '<div></div>';
-
-    const tabHtml = filenameTab
-      ? `<span style="background:${bgColor};color:${titleBarTextColor};padding:5px 14px;border-radius:5px;font-size:13px;font-family:${fontFamily};white-space:nowrap;">${escapeHtml(filename || 'untitled')}</span>`
-      : '';
-
-    titleBarHtml = `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;background:${titleBarBg};padding:10px 16px;box-sizing:border-box;">
-      ${dotsHtml}
-      <div style="display:flex;justify-content:center;">${tabHtml}</div>
-      <div></div>
-    </div>\n`;
-  }
-
-  const codeHtmlBlock = `<div style="background:${bgColor};color:${fgColor};font-family:${fontFamily};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;box-sizing:border-box;width:100%;max-width:100%;${containerOverflow}">\n${rows}</div>`;
-
+  const preStyle = `width:100%;max-width:100%;box-sizing:border-box;border-radius:${showTitleBar ? '0 0 8px 8px' : '8px'};overflow:hidden;background:${bgColor};color:${fgColor};font-family:${fontFamily};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;box-sizing:border-box;width:100%;max-width:100%;${containerOverflow};margin:0;`;
+  const codeHtmlBlock = `<pre style="${preStyle}">\n${rows}\n</pre>`;
+  if (!showTitleBar) return stripLeadingIndentation(codeHtmlBlock);
+  const dotsHtml = windowButtons ? `<div style="display:flex;gap:8px;">
+      <span color="#ff5f56" style="width:12px;height:12px;border-radius:50%;background:#ff5f56;color:#ff5f56;display:inline-block;"></span>
+      <span color="#ffbd2e" style="width:12px;height:12px;border-radius:50%;background:#ffbd2e;color:#ffbd2e;display:inline-block;"></span>
+      <span color="#27c93f" style="width:12px;height:12px;border-radius:50%;background:#27c93f;color:#27c93f;display:inline-block;"></span>
+    </div>` : '<div></div>';
+  const tabHtml = filenameTab ? `<span color="${titleBarTextColor}" style="background:${bgColor};color:${titleBarTextColor};padding:5px 14px;border-radius:5px;font-size:13px;font-family:${fontFamily};white-space:nowrap;">${escapeHtml(filename || 'untitled')}</span>` : '';
+  const titleBarHtml = `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;background:${titleBarBg};padding:10px 16px;box-sizing:border-box;border-radius:8px 8px 0 0;">
+    ${dotsHtml}
+    <div style="display:flex;justify-content:center;">${tabHtml}</div>
+    <div></div>
+  </div>\n`;
   return stripLeadingIndentation(`<div style="width:100%;max-width:100%;box-sizing:border-box;border-radius:8px;overflow:hidden;">\n${titleBarHtml}${codeHtmlBlock}\n</div>`);
 }
 
@@ -2278,52 +2249,28 @@ function generateMultiFileHtmlExport(fileList, themeId, showLineNumbers, wrapLin
   const fontFamily = selectedFontFamily || "'JetBrains Mono', monospace";
   const fontSize = 14;
   const containerOverflow = wrapLines ? 'overflow-x:hidden;' : 'overflow-x:auto;';
-
-  // Scope the id so multiple exports pasted on the same page don't collide
   const uid = 'chromatura-files-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-
-  const dotsHtml = windowButtons
-    ? `<div style="display:flex;gap:8px;">
-      <span style="width:12px;height:12px;border-radius:50%;background:#ff5f56;display:inline-block;"></span>
-      <span style="width:12px;height:12px;border-radius:50%;background:#ffbd2e;display:inline-block;"></span>
-      <span style="width:12px;height:12px;border-radius:50%;background:#27c93f;display:inline-block;"></span>
-    </div>`
-    : '';
-
+  const dotsHtml = windowButtons ? `<div style="display:flex;gap:8px;">
+      <span color="#ff5f56" style="width:12px;height:12px;border-radius:50%;background:#ff5f56;color:#ff5f56;display:inline-block;"></span>
+      <span color="#ffbd2e" style="width:12px;height:12px;border-radius:50%;background:#ffbd2e;color:#ffbd2e;display:inline-block;"></span>
+      <span color="#27c93f" style="width:12px;height:12px;border-radius:50%;background:#27c93f;color:#27c93f;display:inline-block;"></span>
+    </div>` : '';
   let sectionsHtml = '';
   fileList.forEach((file, i) => {
     const rows = buildHighlightedCodeRows(file.text || '', file.highlights || [], themeId, showLineNumbers, wrapLines);
     const marginBottom = i < fileList.length - 1 ? '16px' : '0';
-
-    const headerHtml = `<div class="chroma-file-header" style="display:flex;align-items:center;gap:10px;background:${titleBarBg};padding:8px 16px;box-sizing:border-box;">
+    const headerHtml = `<div class="chroma-file-header" style="display:flex;align-items:center;gap:10px;background:${titleBarBg};padding:8px 16px;box-sizing:border-box;border-radius:8px 8px 0 0;">
       ${dotsHtml}
-      <span style="color:${titleBarTextColor};font-size:13px;font-family:${fontFamily};white-space:nowrap;">${escapeHtml(file.name)}</span>
+      <span color="${titleBarTextColor}" style="color:${titleBarTextColor};font-size:13px;font-family:${fontFamily};white-space:nowrap;">${escapeHtml(file.name)}</span>
     </div>`;
-
+    const preStyle = `background:${bgColor};color:${fgColor};font-family:${fontFamily};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;box-sizing:border-box;width:100%;max-width:100%;${containerOverflow};margin:0;border-radius:0 0 8px 8px;`;
     sectionsHtml += `<div class="chroma-file-block" data-filename="${escapeHtml(file.name)}" data-bg="${bgColor}" data-fg="${fgColor}" data-barbg="${titleBarBg}" data-barfg="${titleBarTextColor}" style="margin-bottom:${marginBottom};border-radius:8px;overflow:hidden;">
       ${headerHtml}
-      <div style="background:${bgColor};color:${fgColor};font-family:${fontFamily};font-size:${fontSize}px;line-height:${editorLineHeight};padding:16px;box-sizing:border-box;${containerOverflow}">
-        ${rows}
-      </div>
+      <pre style="${preStyle}">\n${rows}\n</pre>
     </div>\n`;
   });
-
-  // Deliberately not a <script> tag. Plenty of HTML-permitting environments
-  // (notes apps, some Markdown renderers) specifically strip <script> but —
-  // critically — leave its text content behind as visible plain text, which
-  // is exactly the bug this works around. An invisible image that always
-  // fails to load, with the enhancement in its onerror handler, achieves the
-  // same "run this if JS is allowed" effect without ever putting raw JS
-  // source in the page as visible text: if onerror gets stripped too (many
-  // sanitizers block on* attributes), all that's left is a silent, invisible
-  // broken image — nothing readable, nothing broken-looking.
-  const enhancerCall = `(${chromaturaEnhanceFileTabs.toString()})('${uid}')`
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;');
-  const scriptHtml = enableJsTabs
-    ? `<img src="x" alt="" style="display:none;width:0;height:0;border:0;" onerror="${enhancerCall}">`
-    : '';
-
+  const enhancerCall = `(${chromaturaEnhanceFileTabs.toString()})('${uid}')`.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  const scriptHtml = enableJsTabs ? `<img src="x" alt="" style="display:none;width:0;height:0;border:0;" onerror="${enhancerCall}">` : '';
   return stripLeadingIndentation(`<div id="${uid}" style="width:100%;max-width:100%;box-sizing:border-box;">\n${sectionsHtml}</div>\n${scriptHtml}`);
 }
 
@@ -2366,21 +2313,9 @@ function updateHtmlPreview() {
   const preview = document.getElementById('html-preview');
   const themeId = document.getElementById('html-export-theme').value;
   const showLineNumbers = document.getElementById('html-line-numbers').checked;
-
-  if (document.getElementById('html-github-safe').checked) {
-    const fileList = getFilesForExport();
-    if (fileList.length === 0) {
-      preview.innerHTML = '<div style="padding:12px;color:var(--line-num);font-size:0.8rem;">Select at least one file above</div>';
-      return;
-    }
-    preview.innerHTML = generateGithubSafeExport(fileList, themeId, showLineNumbers);
-    return;
-  }
-
   const wrapLines = document.getElementById('html-line-wrap').checked;
   const windowButtons = document.getElementById('html-window-buttons').checked;
   const multiFile = document.getElementById('html-multi-file').checked;
-
   if (multiFile) {
     const selectedFiles = getSelectedHtmlExportFiles();
     if (selectedFiles.length === 0) {
@@ -2388,13 +2323,9 @@ function updateHtmlPreview() {
       return;
     }
     const enableJsTabs = document.getElementById('html-multi-file-tabs').checked;
-    // Unlike <script>, an <img onerror> inserted via innerHTML actually does
-    // fire, so this preview shows the exact same enhancement (or lack of it)
-    // as the exported file — no separate manual invocation needed here.
     preview.innerHTML = generateMultiFileHtmlExport(selectedFiles, themeId, showLineNumbers, wrapLines, windowButtons, enableJsTabs);
     return;
   }
-
   const filenameTab = document.getElementById('html-filename-tab').checked;
   const filename = document.getElementById('html-filename').value;
   preview.innerHTML = generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename);
@@ -2403,74 +2334,6 @@ function updateHtmlPreview() {
 function getCurrentFileFullName() {
   const file = (typeof files !== 'undefined') ? files.find(f => f.id === activeFileId) : null;
   return file ? file.name : 'untitled.txt';
-}
-
-// Builds one file's code as GitHub-safe markup: a bare <pre> (browsers give
-// it monospace + preserved whitespace for free, no style needed) containing
-// <span color="#hex"> for each highlighted run, plus <b>/<i> for bold/italic
-// categories — all real HTML tags/attributes, none of them `style` or `on*`,
-// so none of it gets stripped by GitHub's sanitizer. Line numbers are just
-// plain text in front of each line, since alignment doesn't need flexbox
-// inside a monospace <pre>.
-function buildGithubSafeCodeRows(text, fileHighlights, themeId, showLineNumbers) {
-  const colors = getThemeColors(themeId);
-  const lines = text.split('\n');
-  const lineOffsets = [];
-  let off = 0;
-  for (const line of lines) { lineOffsets.push(off); off += line.length + 1; }
-  const lineNumWidth = String(lines.length).length;
-
-  const outLines = [];
-  for (let i = 0; i < lines.length; i++) {
-    const lineStart = lineOffsets[i];
-    const lineEnd = lineStart + lines[i].length;
-
-    const lineHighlights = fileHighlights
-      .filter(h => h.end > lineStart && h.start < lineEnd)
-      .sort((a, b) => a.start - b.start);
-
-    let lineOut = '';
-    let pos = lineStart;
-    for (const h of lineHighlights) {
-      const hStart = Math.max(h.start, lineStart);
-      const hEnd = Math.min(h.end, lineEnd);
-      if (hStart < pos) continue;
-      if (hStart > pos) lineOut += escapeHtml(text.slice(pos, hStart));
-
-      const cat = categories.find(c => c.id === h.category);
-      const color = colors[h.category] || '#000000';
-      let inner = escapeHtml(text.slice(hStart, hEnd));
-      if (cat && cat.bold) inner = `<b>${inner}</b>`;
-      if (cat && cat.italic) inner = `<i>${inner}</i>`;
-      lineOut += `<span color="${color}">${inner}</span>`;
-      pos = hEnd;
-    }
-    if (pos < lineEnd) lineOut += escapeHtml(text.slice(pos, lineEnd));
-
-    if (showLineNumbers) {
-      const numStr = String(i + 1).padStart(lineNumWidth, ' ');
-      lineOut = `<span color="#6c7086">${numStr}</span>  ${lineOut}`;
-    }
-    outLines.push(lineOut);
-  }
-  return outLines.join('\n');
-}
-
-// GitHub (and plenty of other strict Markdown renderers) strips `style` and
-// `on*` attributes from raw HTML server-side, so window chrome and the tab
-// enhancement can't survive there — but a plain `color` attribute does, and
-// a bare <pre> tag gets monospace + preserved whitespace from the browser's
-// default stylesheet without needing style at all.
-function generateGithubSafeExport(fileList, themeId, showLineNumbers) {
-  if (fileList.length === 1) {
-    const file = fileList[0];
-    const rows = buildGithubSafeCodeRows(file.text || '', file.highlights || [], themeId, showLineNumbers);
-    return `<pre>\n${rows}\n</pre>\n`;
-  }
-  return fileList.map(file => {
-    const rows = buildGithubSafeCodeRows(file.text || '', file.highlights || [], themeId, showLineNumbers);
-    return `<b>${escapeHtml(file.name)}</b>\n<pre>\n${rows}\n</pre>\n`;
-  }).join('\n');
 }
 
 function getCurrentFileBaseName() {
@@ -2488,24 +2351,15 @@ function wrapHtmlStandalone(fragment) {
 function buildHtmlExportFragment() {
   const themeId = document.getElementById('html-export-theme').value;
   const showLineNumbers = document.getElementById('html-line-numbers').checked;
-
-  if (document.getElementById('html-github-safe').checked) {
-    const fileList = getFilesForExport();
-    if (fileList.length === 0) return null;
-    return generateGithubSafeExport(fileList, themeId, showLineNumbers);
-  }
-
   const wrapLines = document.getElementById('html-line-wrap').checked;
   const windowButtons = document.getElementById('html-window-buttons').checked;
   const multiFile = document.getElementById('html-multi-file').checked;
-
   if (multiFile) {
     const selectedFiles = getSelectedHtmlExportFiles();
     if (selectedFiles.length === 0) return null;
     const enableJsTabs = document.getElementById('html-multi-file-tabs').checked;
     return generateMultiFileHtmlExport(selectedFiles, themeId, showLineNumbers, wrapLines, windowButtons, enableJsTabs);
   }
-
   const filenameTab = document.getElementById('html-filename-tab').checked;
   const filename = document.getElementById('html-filename').value;
   return generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, filenameTab, filename);
@@ -2525,31 +2379,18 @@ async function doCopyHtml() {
 function doExportHtml() {
   const fragment = buildHtmlExportFragment();
   if (fragment === null) { showToast('Select at least one file'); return; }
-  const githubSafe = document.getElementById('html-github-safe').checked;
+  const standalone = document.getElementById('html-standalone').checked;
   const multiFile = document.getElementById('html-multi-file').checked;
-
-  let output, mimeType, filename;
-  if (githubSafe) {
-    output = fragment;
-    mimeType = 'text/markdown';
-    filename = multiFile ? 'chromatura-export.md' : `${getCurrentFileBaseName()}.md`;
-  } else {
-    const standalone = document.getElementById('html-standalone').checked;
-    output = standalone ? wrapHtmlStandalone(fragment) : fragment;
-    mimeType = 'text/html';
-    filename = multiFile ? 'chromatura-tabs-export.html' : `${getCurrentFileBaseName()}.html`;
-  }
-
-  const blob = new Blob([output], { type: mimeType });
+  const output = standalone ? wrapHtmlStandalone(fragment) : fragment;
+  const blob = new Blob([output], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename;
+  a.download = multiFile ? 'chromatura-tabs-export.html' : `${getCurrentFileBaseName()}.html`;
   a.click();
   URL.revokeObjectURL(url);
-
   document.getElementById('export-html-modal').classList.remove('open');
-  showToast(githubSafe ? 'Markdown exported!' : 'HTML exported!');
+  showToast('HTML exported!');
 }
 
 async function doExportImages() {
