@@ -2204,6 +2204,8 @@ function generateHtmlExport(themeId, showLineNumbers, wrapLines, windowButtons, 
 function chromaturaEnhanceFileTabs(rootId) {
   var root = document.getElementById(rootId);
   if (!root) return;
+  if (root.getAttribute('data-chroma-enhanced')) return; // guard against double-firing
+  root.setAttribute('data-chroma-enhanced', '1');
   var blocks = root.querySelectorAll('.chroma-file-block');
   if (blocks.length < 2) return;
 
@@ -2288,8 +2290,20 @@ function generateMultiFileHtmlExport(fileList, themeId, showLineNumbers, wrapLin
     </div>\n`;
   });
 
+  // Deliberately not a <script> tag. Plenty of HTML-permitting environments
+  // (notes apps, some Markdown renderers) specifically strip <script> but —
+  // critically — leave its text content behind as visible plain text, which
+  // is exactly the bug this works around. An invisible image that always
+  // fails to load, with the enhancement in its onerror handler, achieves the
+  // same "run this if JS is allowed" effect without ever putting raw JS
+  // source in the page as visible text: if onerror gets stripped too (many
+  // sanitizers block on* attributes), all that's left is a silent, invisible
+  // broken image — nothing readable, nothing broken-looking.
+  const enhancerCall = `(${chromaturaEnhanceFileTabs.toString()})('${uid}')`
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;');
   const scriptHtml = enableJsTabs
-    ? `<script>(${chromaturaEnhanceFileTabs.toString()})(${JSON.stringify(uid)});</script>`
+    ? `<img src="x" alt="" style="display:none;width:0;height:0;border:0;" onerror="${enhancerCall}">`
     : '';
 
   return stripLeadingIndentation(`<div id="${uid}" style="width:100%;max-width:100%;box-sizing:border-box;">\n${sectionsHtml}</div>\n${scriptHtml}`);
@@ -2337,14 +2351,10 @@ function updateHtmlPreview() {
       return;
     }
     const enableJsTabs = document.getElementById('html-multi-file-tabs').checked;
+    // Unlike <script>, an <img onerror> inserted via innerHTML actually does
+    // fire, so this preview shows the exact same enhancement (or lack of it)
+    // as the exported file — no separate manual invocation needed here.
     preview.innerHTML = generateMultiFileHtmlExport(selectedFiles, themeId, showLineNumbers, wrapLines, windowButtons, enableJsTabs);
-    // <script> tags inserted via innerHTML never execute, so demonstrate the
-    // enhancement by calling the real function directly against this DOM —
-    // this is exactly what the embedded script does in the exported file.
-    if (enableJsTabs) {
-      const rootEl = preview.querySelector('[id^="chromatura-files-"]');
-      if (rootEl) chromaturaEnhanceFileTabs(rootEl.id);
-    }
     return;
   }
 
