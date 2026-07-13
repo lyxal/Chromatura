@@ -295,6 +295,15 @@
     <div class="modal" style="width:500px;">
       <h2>Export as HTML</h2>
       <div class="field">
+        <label
+          style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--editor-fg);text-transform:none;letter-spacing:0;cursor:pointer;">
+          <input type="checkbox" id="html-github-safe" /> GitHub-safe mode (GitHub's Markdown sanitizer strips
+          <code>style</code>/<code>on*</code> attributes, so window chrome and the tab enhancement can't survive
+          there — but a plain <code>color</code> attribute does, so colors and line numbers still work via a bare
+          <code>&lt;pre&gt;</code> block)
+        </label>
+      </div>
+      <div class="field">
         <label>Theme to render</label>
         <select id="html-export-theme" style="width:100%;"></select>
       </div>
@@ -305,6 +314,7 @@
           <input type="checkbox" id="html-line-numbers" checked /> Include line numbers
         </label>
       </div>
+      <div id="html-styled-options">
       <div class="field">
         <label>Line wrapping</label>
         <label
@@ -334,6 +344,7 @@
         <input type="text" id="html-filename" placeholder="filename.js" disabled
           style="width:100%;margin-top:6px;" />
       </div>
+      </div>
       <div class="field">
         <label>Multiple files</label>
         <label
@@ -341,7 +352,7 @@
           <input type="checkbox" id="html-multi-file" /> Export multiple files, stacked one after another with
           filename headers
         </label>
-        <label
+        <label id="html-multi-file-tabs-label"
           style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--editor-fg);text-transform:none;letter-spacing:0;cursor:pointer;">
           <input type="checkbox" id="html-multi-file-tabs" checked /> Turn into clickable tabs when JavaScript is
           allowed (falls back to the plain stacked view if it's stripped, e.g. in Markdown)

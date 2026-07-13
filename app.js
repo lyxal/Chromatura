@@ -688,6 +688,14 @@ function init() {
     updateHtmlPreview();
   });
   document.getElementById('html-multi-file-tabs').addEventListener('change', updateHtmlPreview);
+  document.getElementById('html-github-safe').addEventListener('change', e => {
+    const githubSafe = e.target.checked;
+    document.getElementById('html-styled-options').style.display = githubSafe ? 'none' : '';
+    document.getElementById('html-multi-file-tabs-label').style.display = githubSafe ? 'none' : 'flex';
+    document.getElementById('btn-html-copy').textContent = githubSafe ? '📋 Copy Markdown' : '📋 Copy HTML';
+    document.getElementById('btn-html-export').textContent = githubSafe ? 'Download .md' : 'Download';
+    updateHtmlPreview();
+  });
 
   document.getElementById('btn-export-img').addEventListener('click', openExportImageModal);
   document.getElementById('btn-img-cancel').addEventListener('click', () => document.getElementById('export-img-modal').classList.remove('open'));
@@ -2145,14 +2153,24 @@ function buildHighlightedCodeRows(text, fileHighlights, themeId, showLineNumbers
 }
 
 // Our template literals are indented for readability in the app.js source,
-// but a line starting with 4+ spaces (or a tab) is CommonMark's rule for an
-// indented code block — plenty of notes apps and Markdown renderers honor
-// that even for pasted/raw HTML, which breaks out of HTML parsing entirely
-// partway through the output. Left-trimming every line (never touching the
-// actual code content, which always lives mid-line inside a single-line div,
-// never at line-start) sidesteps that everywhere, regardless of nesting depth.
+// but two things about that formatting are actively dangerous once this
+// output lands inside a Markdown document:
+//   1) A line starting with 4+ spaces (or a tab) is CommonMark's rule for an
+//      indented code block.
+//   2) A blank line ends a raw HTML block entirely, per CommonMark — and our
+//      serialized enhancer function has blank lines between sections for
+//      readability, which used to land right in the middle of the onerror
+//      attribute's value and truncate the tag there, spilling the rest as
+//      visible text.
+// Left-trimming every line and dropping any that are now empty fixes both,
+// without ever touching the actual code content — that always lives mid-line
+// inside a single-line div, never at a line's start or on a line by itself.
 function stripLeadingIndentation(html) {
-  return html.split('\n').map(line => line.replace(/^[ \t]+/, '')).join('\n');
+  return html
+    .split('\n')
+    .map(line => line.replace(/^[ \t]+/, ''))
+    .filter(line => line.length > 0)
+    .join('\n');
 }
 
 // Builds the highlighted code as a self-contained, pre-formatted <div> using
@@ -2319,6 +2337,14 @@ function getSelectedHtmlExportFiles() {
     .filter(Boolean);
 }
 
+// Resolves to whichever file(s) the current modal state points at, regardless
+// of single- vs multi-file mode — shared by the GitHub-safe fenced export.
+function getFilesForExport() {
+  const multiFile = document.getElementById('html-multi-file').checked;
+  if (multiFile) return getSelectedHtmlExportFiles();
+  return [{ name: getCurrentFileFullName(), text: editorEl.value, highlights }];
+}
+
 function populateHtmlMultiFileList() {
   const list = document.getElementById('html-multi-file-list');
   list.innerHTML = '';
@@ -2340,6 +2366,17 @@ function updateHtmlPreview() {
   const preview = document.getElementById('html-preview');
   const themeId = document.getElementById('html-export-theme').value;
   const showLineNumbers = document.getElementById('html-line-numbers').checked;
+
+  if (document.getElementById('html-github-safe').checked) {
+    const fileList = getFilesForExport();
+    if (fileList.length === 0) {
+      preview.innerHTML = '<div style="padding:12px;color:var(--line-num);font-size:0.8rem;">Select at least one file above</div>';
+      return;
+    }
+    preview.innerHTML = generateGithubSafeExport(fileList, themeId, showLineNumbers);
+    return;
+  }
+
   const wrapLines = document.getElementById('html-line-wrap').checked;
   const windowButtons = document.getElementById('html-window-buttons').checked;
   const multiFile = document.getElementById('html-multi-file').checked;
@@ -2368,6 +2405,74 @@ function getCurrentFileFullName() {
   return file ? file.name : 'untitled.txt';
 }
 
+// Builds one file's code as GitHub-safe markup: a bare <pre> (browsers give
+// it monospace + preserved whitespace for free, no style needed) containing
+// <span color="#hex"> for each highlighted run, plus <b>/<i> for bold/italic
+// categories — all real HTML tags/attributes, none of them `style` or `on*`,
+// so none of it gets stripped by GitHub's sanitizer. Line numbers are just
+// plain text in front of each line, since alignment doesn't need flexbox
+// inside a monospace <pre>.
+function buildGithubSafeCodeRows(text, fileHighlights, themeId, showLineNumbers) {
+  const colors = getThemeColors(themeId);
+  const lines = text.split('\n');
+  const lineOffsets = [];
+  let off = 0;
+  for (const line of lines) { lineOffsets.push(off); off += line.length + 1; }
+  const lineNumWidth = String(lines.length).length;
+
+  const outLines = [];
+  for (let i = 0; i < lines.length; i++) {
+    const lineStart = lineOffsets[i];
+    const lineEnd = lineStart + lines[i].length;
+
+    const lineHighlights = fileHighlights
+      .filter(h => h.end > lineStart && h.start < lineEnd)
+      .sort((a, b) => a.start - b.start);
+
+    let lineOut = '';
+    let pos = lineStart;
+    for (const h of lineHighlights) {
+      const hStart = Math.max(h.start, lineStart);
+      const hEnd = Math.min(h.end, lineEnd);
+      if (hStart < pos) continue;
+      if (hStart > pos) lineOut += escapeHtml(text.slice(pos, hStart));
+
+      const cat = categories.find(c => c.id === h.category);
+      const color = colors[h.category] || '#000000';
+      let inner = escapeHtml(text.slice(hStart, hEnd));
+      if (cat && cat.bold) inner = `<b>${inner}</b>`;
+      if (cat && cat.italic) inner = `<i>${inner}</i>`;
+      lineOut += `<span color="${color}">${inner}</span>`;
+      pos = hEnd;
+    }
+    if (pos < lineEnd) lineOut += escapeHtml(text.slice(pos, lineEnd));
+
+    if (showLineNumbers) {
+      const numStr = String(i + 1).padStart(lineNumWidth, ' ');
+      lineOut = `<span color="#6c7086">${numStr}</span>  ${lineOut}`;
+    }
+    outLines.push(lineOut);
+  }
+  return outLines.join('\n');
+}
+
+// GitHub (and plenty of other strict Markdown renderers) strips `style` and
+// `on*` attributes from raw HTML server-side, so window chrome and the tab
+// enhancement can't survive there — but a plain `color` attribute does, and
+// a bare <pre> tag gets monospace + preserved whitespace from the browser's
+// default stylesheet without needing style at all.
+function generateGithubSafeExport(fileList, themeId, showLineNumbers) {
+  if (fileList.length === 1) {
+    const file = fileList[0];
+    const rows = buildGithubSafeCodeRows(file.text || '', file.highlights || [], themeId, showLineNumbers);
+    return `<pre>\n${rows}\n</pre>\n`;
+  }
+  return fileList.map(file => {
+    const rows = buildGithubSafeCodeRows(file.text || '', file.highlights || [], themeId, showLineNumbers);
+    return `<b>${escapeHtml(file.name)}</b>\n<pre>\n${rows}\n</pre>\n`;
+  }).join('\n');
+}
+
 function getCurrentFileBaseName() {
   const file = (typeof files !== 'undefined') ? files.find(f => f.id === activeFileId) : null;
   const name = file ? file.name : 'chromatura-export';
@@ -2383,6 +2488,13 @@ function wrapHtmlStandalone(fragment) {
 function buildHtmlExportFragment() {
   const themeId = document.getElementById('html-export-theme').value;
   const showLineNumbers = document.getElementById('html-line-numbers').checked;
+
+  if (document.getElementById('html-github-safe').checked) {
+    const fileList = getFilesForExport();
+    if (fileList.length === 0) return null;
+    return generateGithubSafeExport(fileList, themeId, showLineNumbers);
+  }
+
   const wrapLines = document.getElementById('html-line-wrap').checked;
   const windowButtons = document.getElementById('html-window-buttons').checked;
   const multiFile = document.getElementById('html-multi-file').checked;
@@ -2413,20 +2525,31 @@ async function doCopyHtml() {
 function doExportHtml() {
   const fragment = buildHtmlExportFragment();
   if (fragment === null) { showToast('Select at least one file'); return; }
-  const standalone = document.getElementById('html-standalone').checked;
+  const githubSafe = document.getElementById('html-github-safe').checked;
   const multiFile = document.getElementById('html-multi-file').checked;
-  const output = standalone ? wrapHtmlStandalone(fragment) : fragment;
 
-  const blob = new Blob([output], { type: 'text/html' });
+  let output, mimeType, filename;
+  if (githubSafe) {
+    output = fragment;
+    mimeType = 'text/markdown';
+    filename = multiFile ? 'chromatura-export.md' : `${getCurrentFileBaseName()}.md`;
+  } else {
+    const standalone = document.getElementById('html-standalone').checked;
+    output = standalone ? wrapHtmlStandalone(fragment) : fragment;
+    mimeType = 'text/html';
+    filename = multiFile ? 'chromatura-tabs-export.html' : `${getCurrentFileBaseName()}.html`;
+  }
+
+  const blob = new Blob([output], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = multiFile ? 'chromatura-tabs-export.html' : `${getCurrentFileBaseName()}.html`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 
   document.getElementById('export-html-modal').classList.remove('open');
-  showToast('HTML exported!');
+  showToast(githubSafe ? 'Markdown exported!' : 'HTML exported!');
 }
 
 async function doExportImages() {
