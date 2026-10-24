@@ -16,60 +16,73 @@
   <header>
     <div class="logo">Chromatura <span>— manual syntax highlighter</span></div>
     <div class="controls">
+      <button id="file-explorer-tab" class="toolbar-files" type="button" aria-controls="file-explorer" aria-expanded="false" title="Show or hide the file explorer">▤ <span>Explorer</span></button>
 
-      <!-- Theme Menu -->
+      <!-- Common appearance choices first; theme management stays tucked away. -->
       <div class="dropdown">
-        <button class="dropdown-trigger">🎨 Theme ▾</button>
-        <div class="dropdown-menu" style="min-width:280px;">
+        <button class="dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false">Theme <span aria-hidden="true">⌄</span></button>
+        <div class="dropdown-menu theme-menu" role="group" aria-label="Theme options">
           <div class="dropdown-section">
-            <label class="dropdown-label">Syntax Theme</label>
+            <label class="dropdown-label" for="theme-search">Syntax theme</label>
+            <input id="theme-search" class="menu-search" type="search" placeholder="Find a theme…" autocomplete="off" />
             <div id="syntax-theme-picker" class="syntax-theme-picker"></div>
           </div>
-          <button class="dropdown-item" id="btn-edit-theme">🎨 Edit Colors</button>
-          <button class="dropdown-item" id="btn-import-syntax-theme">📥 Import Syntax Theme</button>
-          <button class="dropdown-item" id="btn-random-syntax-theme">🎲 Random Syntax Theme</button>
-          <hr class="dropdown-divider" />
-          <button class="dropdown-item" id="btn-ui-theme">🎭 UI Theme</button>
-          <button class="dropdown-item" id="btn-import-ui-theme">📥 Import UI Theme</button>
-          <button class="dropdown-item" id="btn-random-ui-theme">🎲 Random UI Theme</button>
-          <hr class="dropdown-divider" />
-          <button class="dropdown-item" id="btn-manage-themes">🗑️ Manage Themes</button>
+          <div class="dropdown-rule"></div>
+          <button class="dropdown-item" id="btn-ui-theme" type="button">UI appearance…</button>
+          <button class="dropdown-item" id="btn-edit-theme" type="button">Edit syntax colours…</button>
+          <details class="menu-disclosure" id="theme-tools-disclosure">
+            <summary>Theme tools <span aria-hidden="true">⌄</span></summary>
+            <div class="menu-disclosure-content">
+              <button class="dropdown-item" id="btn-import-syntax-theme" type="button">Import syntax theme…</button>
+              <button class="dropdown-item" id="btn-import-ui-theme" type="button">Import UI theme…</button>
+              <button class="dropdown-item" id="btn-random-syntax-theme" type="button">Random syntax colours</button>
+              <button class="dropdown-item" id="btn-random-ui-theme" type="button">Random UI colours</button>
+              <button class="dropdown-item" id="btn-manage-themes" type="button">Manage saved themes…</button>
+            </div>
+          </details>
         </div>
       </div>
 
-      <!-- File Menu -->
       <div class="dropdown">
-        <button class="dropdown-trigger">📁 File ▾</button>
-        <div class="dropdown-menu">
-          <button class="dropdown-item" id="btn-export">📤 Export Project</button>
-          <button class="dropdown-item" id="btn-import">📥 Import Project</button>
-          <hr class="dropdown-divider" />
-          <button class="dropdown-item" id="btn-export-img">🖼️ Export as Image</button>
-          <button class="dropdown-item" id="btn-export-html">📄 Export as HTML</button>
+        <button class="dropdown-trigger" type="button" aria-haspopup="true" aria-expanded="false">Project <span aria-hidden="true">⌄</span></button>
+        <div class="dropdown-menu project-menu" role="group" aria-label="Project actions">
+          <button class="dropdown-item" id="btn-import" type="button">Open project…</button>
+          <button class="dropdown-item" id="btn-export" type="button">Download project</button>
+          <details class="menu-disclosure">
+            <summary>Export as <span aria-hidden="true">⌄</span></summary>
+            <div class="menu-disclosure-content">
+              <button class="dropdown-item" id="btn-export-img" type="button">Image…</button>
+              <button class="dropdown-item" id="btn-export-html" type="button">HTML…</button>
+            </div>
+          </details>
         </div>
       </div>
 
-      <button id="btn-settings" title="Font, indent & display settings">⚙️ Settings</button>
-      <button id="btn-help" title="Keyboard shortcuts">❓ Help</button>
+      <button id="btn-settings" class="toolbar-icon" title="Editor settings" aria-label="Editor settings">⚙</button>
+      <button id="btn-help" class="toolbar-icon" title="Keyboard shortcuts and help" aria-label="Keyboard shortcuts and help">?</button>
     </div>
   </header>
 
   <div class="main-container">
     <!-- File Explorer Panel -->
-    <div class="file-explorer" id="file-explorer">
+    <div class="file-explorer" id="file-explorer" aria-label="File explorer">
       <div class="file-explorer-header">
-        <h3>Files</h3>
+        <div class="explorer-heading"><h3>Explorer</h3><span id="explorer-count" class="explorer-count"></span></div>
         <div class="file-explorer-actions">
-          <button id="btn-new-file" class="file-explorer-action" title="New file">+</button>
-          <button id="btn-new-folder" class="file-explorer-action" title="New folder">📁</button>
-          <button id="btn-toggle-files" class="file-explorer-action" title="Close file explorer">✕</button>
+          <button id="btn-new-file" class="file-explorer-action" type="button" title="New file" aria-label="New file">＋</button>
+          <button id="btn-new-folder" class="file-explorer-action" type="button" title="New folder" aria-label="New folder">▣</button>
+          <button id="btn-toggle-files" class="file-explorer-action explorer-close" type="button" title="Close explorer" aria-label="Close explorer">×</button>
         </div>
       </div>
-      <div class="file-list" id="file-list"></div>
+      <div class="explorer-search-wrap">
+        <input id="explorer-search" type="search" placeholder="Filter files…" autocomplete="off" aria-label="Filter files" />
+      </div>
+      <div class="file-list" id="file-list" role="tree" aria-label="Project files"></div>
+      <div class="explorer-footer" id="explorer-footer">Use ⋯ to rename, duplicate or move files</div>
     </div>
 
-    <!-- Collapsed file explorer tab -->
-    <button class="file-explorer-tab" id="file-explorer-tab" title="Open file explorer">📂</button>
+    <!-- Context actions are deliberately in one menu, not three tiny row buttons. -->
+    <div class="explorer-context-menu" id="explorer-context-menu" role="menu" aria-label="File actions" hidden></div>
 
     <!-- Shared backdrop for mobile drawers; tapping it closes whichever is open -->
     <div class="mobile-backdrop" id="mobile-backdrop"></div>
@@ -86,7 +99,7 @@
       <div class="editor-container">
         <div id="highlight-layer" aria-hidden="true"></div>
         <div id="indent-guides" aria-hidden="true"></div>
-        <textarea id="editor" spellcheck="false" placeholder="Paste or type your code here..."></textarea>
+        <textarea id="editor" wrap="off" spellcheck="false" placeholder="Paste or type your code here..."></textarea>
       </div>
     </div>
   </div>
@@ -388,6 +401,22 @@
       <div id="manage-themes-content"></div>
       <div class="modal-actions">
         <button id="btn-manage-themes-close" class="btn-primary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move file (also usable without drag and drop, e.g. on touch devices) -->
+  <div class="modal-overlay" id="move-file-modal">
+    <div class="modal modal-small">
+      <h2>Move file</h2>
+      <p class="move-file-summary" id="move-file-name"></p>
+      <div class="field">
+        <label for="move-file-target">Destination</label>
+        <select id="move-file-target"></select>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-move-cancel">Cancel</button>
+        <button id="btn-move-confirm" class="btn-primary">Move file</button>
       </div>
     </div>
   </div>

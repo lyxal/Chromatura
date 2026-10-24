@@ -42,7 +42,7 @@ function loadGoogleFont(font) {
   const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = font.url;
   document.head.appendChild(link); loadedGoogleFonts.add(font.name);
 }
-GOOGLE_FONTS.forEach(f => loadGoogleFont(f));
+// Google Fonts are loaded on demand; requesting every family slows down startup.
 
 // ─────────────────────────────────────────────
 // THEMES
@@ -390,13 +390,18 @@ function updateDynamicStyles() {
 // FONT MANAGEMENT
 // ─────────────────────────────────────────────
 let customFontStyleEl = null;
-function applyFont(family) { document.documentElement.style.setProperty('--editor-font', family); }
+function applyFont(family) {
+  const googleFont = GOOGLE_FONTS.find(font => font.family === family);
+  if (googleFont) loadGoogleFont(googleFont);
+  document.documentElement.style.setProperty('--editor-font', family);
+}
 function loadCustomFontFromDataUrl(name, dataUrl) {
   if (!customFontStyleEl) { customFontStyleEl = document.createElement('style'); document.head.appendChild(customFontStyleEl); }
   customFontStyleEl.textContent = `@font-face{font-family:'CustomUserFont';src:url('${dataUrl}');font-weight:100 900;font-style:normal;}`;
   customFontName = name; customFontFamily = "'CustomUserFont', monospace"; customFontDataUrl = dataUrl;
 }
 function applyLineHeight(val) { document.documentElement.style.setProperty('--editor-line-height', val); }
+function applyIndentSize() { document.documentElement.style.setProperty('--editor-tab-size', indentSize); }
 
 // ─────────────────────────────────────────────
 // SCROLL PAST END
@@ -408,14 +413,21 @@ function updateScrollPadding() {
   const pad = Math.max(0, containerHeight - 60);
   editorEl.style.paddingBottom = pad + 'px';
   highlightLayer.style.paddingBottom = pad + 'px';
+  // The gutter must scroll the same distance as the editor.
+  const numberRows = lineNumbers.firstElementChild;
+  if (numberRows) numberRows.style.paddingBottom = pad + 'px';
 }
 
 // ─────────────────────────────────────────────
 // FOLDING
 // ─────────────────────────────────────────────
 function getLineIndent(line) {
-  const match = line.match(/^( *)/);
-  return match ? match[1].length : 0;
+  const whitespace = (line.match(/^[ \t]*/) || [''])[0];
+  let columns = 0;
+  for (const char of whitespace) {
+    columns += char === '\t' ? indentSize - (columns % indentSize) : 1;
+  }
+  return columns;
 }
 
 function findFoldRange(lines, startLine) {
@@ -423,11 +435,12 @@ function findFoldRange(lines, startLine) {
   // The block starts at startLine+1
   if (startLine >= lines.length - 1) return null;
   const headerIndent = getLineIndent(lines[startLine]);
-  const blockIndent = getLineIndent(lines[startLine + 1]);
-  if (blockIndent <= headerIndent) return null;
+  let first = startLine + 1;
+  while (first < lines.length && !lines[first].trim()) first++;
+  if (first === lines.length || getLineIndent(lines[first]) <= headerIndent) return null;
 
-  let endLine = startLine + 1;
-  for (let i = startLine + 2; i < lines.length; i++) {
+  let endLine = first;
+  for (let i = first + 1; i < lines.length; i++) {
     const line = lines[i];
     // Empty lines don't break the block
     if (line.trim() === '') { endLine = i; continue; }
@@ -471,6 +484,7 @@ function toggleFold(lineIdx) {
   render();
   updateLineNumbers();
   updateIndentGuides();
+  syncScroll();
   saveToStorage();
 }
 
@@ -610,6 +624,7 @@ function init() {
   applyUITheme(customUIColors || UI_THEMES[currentUIThemeId]);
   applyFont(selectedFontFamily);
   applyLineHeight(editorLineHeight);
+  applyIndentSize();
 
   // 4. Render
   render();
@@ -620,7 +635,32 @@ function init() {
 
   // ── Event listeners ──
 
+  editorEl.addEventListener('beforeinput', () => {
+    preInputSelection = [editorEl.selectionStart, editorEl.selectionEnd];
+  });
   editorEl.addEventListener('input', onEditorInput);
+  window.addEventListener('pagehide', () => {
+    if (pendingSave !== null) { clearTimeout(pendingSave); pendingSave = null; saveToStorage(); }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && pendingSave !== null) {
+      clearTimeout(pendingSave); pendingSave = null; saveToStorage();
+    }
+  });
+  // A folded document is a compact, read-only preview. Clicking it expands the
+  // document before editing, because a textarea cannot hide individual lines.
+  highlightLayer.addEventListener('click', () => {
+    if (!foldedRegions.length) return;
+    foldedRegions = [];
+    render(); updateLineNumbers(); updateIndentGuides(); syncScroll();
+    editorEl.focus(); saveToStorage();
+  });
+  highlightLayer.addEventListener('scroll', () => {
+    if (!foldedRegions.length) return;
+    editorEl.scrollTop = highlightLayer.scrollTop;
+    editorEl.scrollLeft = highlightLayer.scrollLeft;
+    lineNumbers.scrollTop = highlightLayer.scrollTop;
+  });
   editorEl.addEventListener('focus', () => setTimeout(updateFabForKeyboard, 300));
   editorEl.addEventListener('scroll', syncScroll);
   editorEl.addEventListener('keydown', onKeyDown);
@@ -722,56 +762,73 @@ function init() {
   document.getElementById('btn-manage-themes').addEventListener('click', openManageThemesModal);
   document.getElementById('btn-manage-themes-close').addEventListener('click', () => document.getElementById('manage-themes-modal').classList.remove('open'));
 
-  // Dropdown menus
+  // Compact dropdowns: Escape, outside-click and aria-expanded are kept in sync.
+  function closeToolbarMenus() {
+    document.querySelectorAll('.dropdown.open').forEach(d => {
+      d.classList.remove('open');
+      d.querySelector('.dropdown-trigger').setAttribute('aria-expanded', 'false');
+      d.querySelectorAll('.menu-disclosure[open]').forEach(details => { details.open = false; });
+      const search = d.querySelector('#theme-search');
+      if (search) {
+        search.value = '';
+        d.querySelectorAll('.syntax-theme-option').forEach(option => { option.hidden = false; });
+      }
+    });
+  }
   document.querySelectorAll('.dropdown-trigger').forEach(trigger => {
     trigger.addEventListener('click', (e) => {
       e.stopPropagation();
       const dropdown = trigger.parentElement;
       const wasOpen = dropdown.classList.contains('open');
-      document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
-      if (!wasOpen) dropdown.classList.add('open');
+      closeToolbarMenus();
+      if (!wasOpen) {
+        dropdown.classList.add('open');
+        trigger.setAttribute('aria-expanded', 'true');
+      }
     });
   });
-
-  document.addEventListener('click', (e) => {
-    if (e.target.closest('.dropdown-menu')) return;
-    document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
-  });
-
-  // Close dropdown when clicking a dropdown-item (but not theme picker options)
-  document.addEventListener('click', (e) => {
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.dropdown')) closeToolbarMenus();
     const item = e.target.closest('.dropdown-item');
-    if (item) {
-      item.closest('.dropdown').classList.remove('open');
-    }
+    if (item && item.closest('.dropdown')) closeToolbarMenus();
+    if (!e.target.closest('#explorer-context-menu') && !e.target.closest('.file-row-more')) closeExplorerContextMenu();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    closeToolbarMenus();
+    closeExplorerContextMenu(true);
+    const modal = document.querySelector('.modal-overlay.open');
+    if (modal) modal.classList.remove('open');
+  });
+  document.getElementById('theme-search').addEventListener('input', e => {
+    const filter = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('.syntax-theme-option').forEach(option => {
+      option.hidden = !option.textContent.toLowerCase().includes(filter);
+    });
   });
 
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
   });
 
-  // File explorer
+  // File explorer may replace the editor contents with the restored active file.
   initFileExplorer();
+  render(); updateLineNumbers(); updateIndentGuides(); updateCursorStatus();
 
-  document.getElementById('btn-toggle-files').addEventListener('click', () => {
-    fileExplorerOpen = false;
-    document.getElementById('file-explorer').classList.remove('open');
-    updateMobileBackdrop();
-    saveAllToStorage();
-  });
-
+  document.getElementById('btn-toggle-files').addEventListener('click', () => setFileExplorerOpen(false));
   document.getElementById('mobile-backdrop').addEventListener('click', () => {
-    fileExplorerOpen = false;
-    document.getElementById('file-explorer').classList.remove('open');
+    setFileExplorerOpen(false);
     closeSidebarSheet();
-    saveAllToStorage();
   });
-
-  document.getElementById('file-explorer-tab').addEventListener('click', () => {
-    fileExplorerOpen = true;
-    document.getElementById('file-explorer').classList.add('open');
-    updateMobileBackdrop();
-    saveAllToStorage();
+  document.getElementById('file-explorer-tab').addEventListener('click', () => setFileExplorerOpen(!fileExplorerOpen));
+  document.getElementById('explorer-search').addEventListener('input', buildFileList);
+  document.getElementById('btn-move-cancel').addEventListener('click', () => document.getElementById('move-file-modal').classList.remove('open'));
+  document.getElementById('btn-move-confirm').addEventListener('click', () => {
+    const modal = document.getElementById('move-file-modal');
+    const name = document.getElementById('move-file-name').textContent;
+    moveFileToFolder(modal.dataset.fileId, document.getElementById('move-file-target').value || null);
+    modal.classList.remove('open');
+    showToast(`Moved "${name}"`);
   });
 
   document.getElementById('sidebar-fab').addEventListener('click', openSidebarSheet);
@@ -785,33 +842,24 @@ function init() {
     updateFabForKeyboard();
   }
 
-  // Move files back to root by dropping onto the file list background
+  // Explicit root target lets files be moved out of folders without aiming at whitespace.
   const fileList = document.getElementById('file-list');
-  fileList.addEventListener('dragover', (e) => {
-    if (e.dataTransfer.types.includes('text/file-id') &&
-        (e.target === fileList || e.target.classList.contains('file-list'))) {
-      e.preventDefault();
-      fileList.classList.add('drag-over-root');
-    }
+  fileList.addEventListener('dragover', e => {
+    const target = e.target.closest('[data-root-drop]');
+    if (!target || !e.dataTransfer.types.includes('text/file-id')) return;
+    e.preventDefault();
+    target.classList.add('drag-over-root');
   });
-  fileList.addEventListener('dragleave', (e) => {
-    if (!fileList.contains(e.relatedTarget)) {
-      fileList.classList.remove('drag-over-root');
-    }
+  fileList.addEventListener('dragleave', e => {
+    const target = e.target.closest('[data-root-drop]');
+    if (target && !target.contains(e.relatedTarget)) target.classList.remove('drag-over-root');
   });
-  fileList.addEventListener('drop', (e) => {
-    fileList.classList.remove('drag-over-root');
-    if (e.target === fileList || e.target.classList.contains('file-list')) {
-      const fileId = e.dataTransfer.getData('text/file-id');
-      if (fileId) {
-        const file = files.find(f => f.id === fileId);
-        if (file) {
-          file.folderId = null;
-          buildFileList();
-          saveFilesToStorage();
-        }
-      }
-    }
+  fileList.addEventListener('drop', e => {
+    const target = e.target.closest('[data-root-drop]');
+    if (!target) return;
+    e.preventDefault();
+    target.classList.remove('drag-over-root');
+    moveFileToFolder(e.dataTransfer.getData('text/file-id'), null);
   });
 
   document.getElementById('btn-new-file').addEventListener('click', () => createNewFile());
@@ -848,12 +896,14 @@ function buildSyntaxThemePicker() {
   const picker = document.getElementById('syntax-theme-picker');
   if (!picker) return;
   picker.innerHTML = '';
+  const themeFilter = document.getElementById('theme-search')?.value.trim().toLowerCase() || '';
 
   const previewKeys = ['keyword', 'string', 'function', 'type', 'number', 'variable', 'comment'];
 
   for (const [id, theme] of Object.entries(THEMES)) {
     const option = document.createElement('button');
     option.className = 'syntax-theme-option' + (id === currentThemeId ? ' active' : '');
+    option.hidden = !!themeFilter && !theme.name.toLowerCase().includes(themeFilter);
 
     // Color swatches
     const swatches = document.createElement('div');
@@ -928,6 +978,16 @@ function openSettingsModal() {
   document.getElementById('setting-line-height').value = editorLineHeight;
   document.getElementById('line-height-display').textContent = editorLineHeight.toFixed(1);
   const fontList = document.getElementById('font-list'); fontList.innerHTML = '';
+  const fontObserver = typeof IntersectionObserver !== 'undefined'
+    ? new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            loadGoogleFont(entry.target._googleFont);
+            fontObserver.unobserve(entry.target);
+          }
+        }
+      }, { root: fontList, rootMargin: '40px' })
+    : null;
   const allOptions = [...ALL_FONTS];
   if (customFontName && customFontFamily) allOptions.unshift({ name: `📁 ${customFontName}`, family: customFontFamily, url: null, isCustom: true });
   for (const font of allOptions) {
@@ -936,6 +996,11 @@ function openSettingsModal() {
     btn.innerHTML = `<span class="font-check">${selectedFontFamily === font.family ? '✓' : ''}</span><span class="font-preview" style="font-family:${font.family}">${font.name}</span>`;
     btn.addEventListener('click', () => { fontList.querySelectorAll('.font-option').forEach(b => { b.classList.remove('selected'); b.querySelector('.font-check').textContent = ''; }); btn.classList.add('selected'); btn.querySelector('.font-check').textContent = '✓'; btn._fontFamily = font.family; btn._fontName = font.name; });
     btn._fontFamily = font.family; btn._fontName = font.name; fontList.appendChild(btn);
+    if (font.url) {
+      btn._googleFont = font;
+      if (fontObserver) fontObserver.observe(btn);
+      else loadGoogleFont(font);
+    }
   }
   document.getElementById('custom-font-name').textContent = customFontName ? `Loaded: ${customFontName}` : '';
   document.getElementById('settings-modal').classList.add('open');
@@ -950,7 +1015,7 @@ function saveSettings() {
   editorLineHeight = parseFloat(document.getElementById('setting-line-height').value) || 1.6;
   const selectedBtn = document.querySelector('#font-list .font-option.selected');
   if (selectedBtn) { selectedFontFamily = selectedBtn._fontFamily; selectedFontName = selectedBtn._fontName; }
-  applyFont(selectedFontFamily); applyLineHeight(editorLineHeight);
+  applyFont(selectedFontFamily); applyLineHeight(editorLineHeight); applyIndentSize();
   updateLineNumbers(); updateHelpContent(); updateScrollPadding(); updateIndentGuides(); render();
   document.getElementById('settings-modal').classList.remove('open'); showToast('Settings applied'); saveToStorage();
 }
@@ -998,8 +1063,6 @@ function buildSidebar() {
   sidebar.innerHTML = '<div class="sidebar-header"><h3>Highlight As</h3><button class="sidebar-close-btn" id="btn-sidebar-close" title="Close">✕</button></div>';
   document.getElementById('btn-sidebar-close').addEventListener('click', closeSidebarSheet);
 
-  const shortcutKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
-
   categories.forEach((cat, idx) => {
     const isCustom = !BUILTIN_IDS.has(cat.id);
 
@@ -1017,8 +1080,8 @@ function buildSidebar() {
       theme.colors[cat.id] = color; // persist so it doesn't regenerate
     }
     const styleStr = `background:${color};${cat.bold ? 'border-width:2px;' : ''}`;
-    const shortcutLabel = idx < shortcutKeys.length ? `Alt+${shortcutKeys[idx]}` : '';
-    btn.innerHTML = `<span class="swatch" style="${styleStr}"></span>${cat.label}<span class="shortcut">${shortcutLabel}</span>`;
+    const shortcutLabel = cat.shortcut ? `Alt+${cat.shortcut}` : '';
+    btn.innerHTML = `<span class="swatch" style="${styleStr}"></span>${escapeHtml(cat.label)}<span class="shortcut">${shortcutLabel}</span>`;
     btn.addEventListener('click', () => applyHighlight(cat.id));
     wrapper.appendChild(btn);
 
@@ -1098,7 +1161,7 @@ function updateNewCatPreview() {
 
     const chip = document.createElement('div');
     chip.className = 'preview-color';
-    chip.innerHTML = `<span class="dot" style="background:${color};width:10px;height:10px;border-radius:50%;flex-shrink:0;"></span><span>${theme.name}</span>`;
+    chip.innerHTML = `<span class="dot" style="background:${color};width:10px;height:10px;border-radius:50%;flex-shrink:0;"></span><span>${escapeHtml(theme.name)}</span>`;
     preview.appendChild(chip);
   }
 }
@@ -1130,7 +1193,7 @@ function addNewCategory() {
 
     updateDynamicStyles();
     buildSidebar();
-    render();
+    render(); updateHelpContent();
     saveToStorage();
     showToast(`Updated category "${name}"`);
   } else {
@@ -1141,11 +1204,13 @@ function addNewCategory() {
       return;
     }
 
+    if (!id) { showToast('Use letters or numbers in the category name'); return; }
     const newCat = {
       id,
       label: name,
       bold: boldCheck.checked,
       italic: italicCheck.checked,
+      shortcut: getNextShortcut(),
     };
 
     // Generate colors for each theme
@@ -1173,8 +1238,8 @@ function addNewCategory() {
 // ─────────────────────────────────────────────
 function updateHelpContent() {
   const el = document.getElementById('help-content');
-  const sl = categories.filter(c => c.shortcut).map(c => `<kbd>Alt+${c.shortcut}</kbd> ${c.label}`).join(' · ');
-  el.innerHTML = `<h4>Applying Highlights</h4><p>Select text, then press the shortcut or click a sidebar button:</p><p>${sl}</p><h4>Removing Highlights</h4><p><kbd>Alt+Backspace</kbd> Remove highlights from selected text</p><h4>Indentation</h4><p><kbd>Ctrl+]</kbd> Indent selected lines (${indentSize} spaces)</p><p><kbd>Ctrl+[</kbd> Outdent selected lines (${indentSize} spaces)</p><h4>Folding</h4><p>Click the ▶ arrow next to a line number to fold/unfold an indented block</p><h4>Other</h4><p><kbd>Ctrl+S</kbd> / <kbd>⌘+S</kbd> Save to browser storage</p><p><kbd>Tab</kbd> Insert ${indentSize} spaces</p><p><kbd>Enter</kbd> New line with auto-indent</p><p>You can scroll past the end of the document.</p>`;
+  const sl = categories.filter(c => c.shortcut).map(c => `<kbd>Alt+${escapeHtml(c.shortcut)}</kbd> ${escapeHtml(c.label)}`).join(' · ');
+  el.innerHTML = `<h4>Applying Highlights</h4><p>Select text, then press the shortcut or click a sidebar button:</p><p>${sl}</p><h4>Removing Highlights</h4><p><kbd>Alt+Backspace</kbd> Remove highlights from selected text</p><h4>Indentation</h4><p><kbd>Tab</kbd> Indent selection or insert ${indentSize} spaces</p><p><kbd>Shift+Tab</kbd> Outdent selected or current line</p><p><kbd>Ctrl+]</kbd> Indent selected lines (${indentSize} spaces)</p><p><kbd>Ctrl+[</kbd> Outdent selected lines (${indentSize} spaces)</p><h4>Folding</h4><p>Use the arrows by line numbers to collapse code into a read-only preview. Click the preview to expand and resume editing.</p><h4>Other</h4><p><kbd>Ctrl/⌘+Z</kbd> Undo · <kbd>Ctrl/⌘+Shift+Z</kbd> Redo</p><p><kbd>Ctrl+S</kbd> / <kbd>⌘+S</kbd> Save to browser storage</p><p><kbd>Enter</kbd> New line with auto-indent</p><p>You can scroll past the end of the document.</p>`;
 }
 
 // ─────────────────────────────────────────────
@@ -1183,9 +1248,10 @@ function updateHelpContent() {
 function applyHighlight(category) {
   const start = editorEl.selectionStart, end = editorEl.selectionEnd;
   if (start === end) { showToast('Select some text first'); return; }
+  recordHistory();
   removeOverlapping(start, end);
   highlights.push({ start, end, category });
-  highlights.sort((a, b) => a.start - b.start);
+  normalizeHighlights();
   render(); saveToStorage();
   showToast(`Applied "${category}" highlight`);
   statusLeft.textContent = `Highlighted as ${category}`;
@@ -1195,9 +1261,13 @@ function applyHighlight(category) {
 function removeHighlight() {
   const start = editorEl.selectionStart, end = editorEl.selectionEnd;
   if (start === end) { showToast('Select text to remove highlighting'); return; }
-  const before = highlights.length;
+  if (!highlights.some(h => h.end > start && h.start < end)) {
+    showToast('No highlights in selection'); return;
+  }
+  const before = JSON.stringify(highlights);
+  recordHistory();
   removeOverlapping(start, end);
-  if (highlights.length < before) {
+  if (JSON.stringify(highlights) !== before) {
     render(); saveToStorage();
     showToast('Highlights removed');
     statusLeft.textContent = 'Highlights removed';
@@ -1207,23 +1277,99 @@ function removeHighlight() {
   }
 }
 
+// Erase only the selected portion. Preserve the parts of an existing highlight
+// on either side instead of deleting the entire span.
 function removeOverlapping(start, end) {
-  highlights = highlights.filter(h => h.end <= start || h.start >= end);
+  highlights = highlights.flatMap(h => {
+    if (h.end <= start || h.start >= end) return [h];
+    const pieces = [];
+    if (h.start < start) pieces.push({ ...h, end: start });
+    if (h.end > end) pieces.push({ ...h, start: end });
+    return pieces;
+  });
+  normalizeHighlights();
+}
+
+function normalizeHighlights() {
+  highlights = highlights.filter(h => h.end > h.start)
+    .sort((a, b) => a.start - b.start);
+  const merged = [];
+  for (const h of highlights) {
+    const last = merged[merged.length - 1];
+    if (last && last.category === h.category && h.start <= last.end) {
+      last.end = Math.max(last.end, h.end);
+    } else {
+      merged.push({ ...h });
+    }
+  }
+  highlights = merged;
+}
+
+// ─────────────────────────────────────────────
+// UNDO / REDO (including manually applied colors and indentation)
+// ─────────────────────────────────────────────
+const historyByFile = new Map();
+let preInputSelection = null;
+function getFileHistory() {
+  const key = activeFileId || '__initial__';
+  if (!historyByFile.has(key)) historyByFile.set(key, { undo: [], redo: [] });
+  return historyByFile.get(key);
+}
+function editorSnapshot(text = editorEl.value, selection = null) {
+  return {
+    text,
+    highlights: highlights.map(h => ({ ...h })),
+    foldedRegions: foldedRegions.map(r => ({ ...r })),
+    selectionStart: selection ? selection[0] : editorEl.selectionStart,
+    selectionEnd: selection ? selection[1] : editorEl.selectionEnd,
+  };
+}
+function recordHistory(text = editorEl.value, selection = null) {
+  const history = getFileHistory();
+  history.undo.push(editorSnapshot(text, selection));
+  if (history.undo.length > 150) history.undo.shift();
+  history.redo.length = 0;
+}
+function restoreHistorySnapshot(snapshot) {
+  editorEl.value = snapshot.text;
+  previousText = snapshot.text;
+  highlights = snapshot.highlights.map(h => ({ ...h }));
+  foldedRegions = snapshot.foldedRegions.map(r => ({ ...r }));
+  editorEl.setSelectionRange(snapshot.selectionStart, snapshot.selectionEnd);
+  render(); updateLineNumbers(); updateScrollPadding(); updateIndentGuides();
+  updateCursorStatus(); saveToStorage();
+}
+function changeHistory(direction) {
+  const history = getFileHistory();
+  const from = direction === 'undo' ? history.undo : history.redo;
+  const to = direction === 'undo' ? history.redo : history.undo;
+  if (!from.length) return;
+  to.push(editorSnapshot());
+  restoreHistorySnapshot(from.pop());
+  preInputSelection = null;
 }
 
 // ─────────────────────────────────────────────
 // EDITOR INPUT
 // ─────────────────────────────────────────────
+let pendingSave = null;
+function scheduleSave() {
+  clearTimeout(pendingSave);
+  pendingSave = setTimeout(() => { pendingSave = null; saveToStorage(); }, 300);
+}
 function onEditorInput() {
   const newText = editorEl.value;
+  if (newText !== previousText) recordHistory(previousText, preInputSelection);
+  preInputSelection = null;
   adjustHighlightsOnEdit(previousText, newText);
   recalcFoldsAfterEdit(previousText, newText);
   previousText = newText;
   render(); updateLineNumbers(); updateScrollPadding();
-  updateIndentGuides(); saveToStorage();
+  updateIndentGuides(); updateCursorStatus(); scheduleSave();
 }
 
 function adjustHighlightsOnEdit(oldText, newText) {
+  if (oldText === newText) return;
   const oldLen = oldText.length, newLen = newText.length;
   let prefixLen = 0;
   while (prefixLen < oldLen && prefixLen < newLen && oldText[prefixLen] === newText[prefixLen]) prefixLen++;
@@ -1243,59 +1389,95 @@ function adjustHighlightsOnEdit(oldText, newText) {
     else if (start >= deleteStart && start < deleteEnd && end > deleteEnd) updated.push({ start: deleteStart + insertLen, end: end + delta, category });
   }
   highlights = updated.filter(h => h.end > h.start);
+  normalizeHighlights();
 }
 
 // ─────────────────────────────────────────────
 // INDENT / OUTDENT
 // ─────────────────────────────────────────────
+// Apply independent edits from the end of the document, so earlier character
+// offsets remain stable. This also preserves colors across multi-line edits.
+function rebaseHighlightsForEdit(start, end, insertLength) {
+  const delta = insertLength - (end - start);
+  const updated = [];
+  for (const h of highlights) {
+    if (h.end <= start) { updated.push(h); continue; }
+    if (h.start >= end) { updated.push({ ...h, start: h.start + delta, end: h.end + delta }); continue; }
+    if (h.start < start) updated.push({ ...h, end: start });
+    if (h.end > end) updated.push({ ...h, start: start + insertLength, end: h.end + delta });
+    // When typing strictly inside a highlighted word, the inserted text should
+    // inherit that highlight. Replacements of selected ranges stay neutral.
+    if (start === end && h.start < start && h.end > start) {
+      updated.pop(); updated.pop();
+      updated.push({ ...h, end: h.end + insertLength });
+    }
+  }
+  highlights = updated;
+  normalizeHighlights();
+}
+
+function applyEditorEdits(edits, selectionStart, selectionEnd) {
+  if (!edits.some(edit => edit.start !== edit.end || edit.text)) return;
+  recordHistory();
+  let newText = editorEl.value;
+  let start = selectionStart, end = selectionEnd;
+  for (const edit of [...edits].sort((a, b) => b.start - a.start)) {
+    const delta = edit.text.length - (edit.end - edit.start);
+    const remap = pos => pos <= edit.start ? pos : pos >= edit.end ? pos + delta : edit.start + edit.text.length;
+    // A selection exactly at the beginning of an inserted indent belongs
+    // after it; for deletions it belongs at the new line start.
+    if (edit.start === edit.end) {
+      if (start >= edit.start) start += delta;
+      if (end >= edit.start) end += delta;
+    } else {
+      start = remap(start); end = remap(end);
+    }
+    rebaseHighlightsForEdit(edit.start, edit.end, edit.text.length);
+    newText = newText.slice(0, edit.start) + edit.text + newText.slice(edit.end);
+  }
+  if (newText === editorEl.value) return;
+  // Edits were already rebased on the working highlights, so capture the
+  // pre-edit snapshot separately before replacing text.
+  editorEl.value = newText;
+  editorEl.setSelectionRange(Math.max(0, start), Math.max(0, end));
+  foldedRegions = [];
+  previousText = newText;
+  render(); updateLineNumbers(); updateScrollPadding(); updateIndentGuides();
+  updateCursorStatus(); saveToStorage();
+}
+
+function getSelectedLineStarts(text, start, end) {
+  const first = text.lastIndexOf('\n', start - 1) + 1;
+  // Don't include the next line when the selection ends at its first column.
+  const lastPos = end > start && text[end - 1] === '\n' ? end - 1 : end;
+  const last = text.lastIndexOf('\n', lastPos - 1) + 1;
+  const starts = [];
+  for (let pos = first; pos <= last;) {
+    starts.push(pos);
+    const next = text.indexOf('\n', pos);
+    if (next === -1 || next + 1 > last) break;
+    pos = next + 1;
+  }
+  return starts;
+}
+
 function indentLines() {
-  const val = editorEl.value;
+  const text = editorEl.value;
   const start = editorEl.selectionStart, end = editorEl.selectionEnd;
-  const indent = ' '.repeat(indentSize);
-  const blockStart = val.lastIndexOf('\n', start - 1) + 1;
-  const afterEnd = val.indexOf('\n', end);
-  const blockEnd = afterEnd === -1 ? val.length : afterEnd;
-  const before = val.substring(0, blockStart);
-  const block = val.substring(blockStart, blockEnd);
-  const after = val.substring(blockEnd);
-  const lines = block.split('\n');
-  const newBlock = lines.map(line => indent + line).join('\n');
-  const oldText = editorEl.value;
-  editorEl.value = before + newBlock + after;
-  editorEl.selectionStart = start + indentSize;
-  editorEl.selectionEnd = end + indentSize * lines.length;
-  adjustHighlightsOnEdit(oldText, editorEl.value);
-  recalcFoldsAfterEdit(oldText, editorEl.value);
-  previousText = editorEl.value;
-  render(); updateLineNumbers(); updateIndentGuides(); saveToStorage();
+  const edits = getSelectedLineStarts(text, start, end)
+    .map(pos => ({ start: pos, end: pos, text: ' '.repeat(indentSize) }));
+  applyEditorEdits(edits, start, end);
 }
 
 function outdentLines() {
-  const val = editorEl.value;
+  const text = editorEl.value;
   const start = editorEl.selectionStart, end = editorEl.selectionEnd;
-  const blockStart = val.lastIndexOf('\n', start - 1) + 1;
-  const afterEnd = val.indexOf('\n', end);
-  const blockEnd = afterEnd === -1 ? val.length : afterEnd;
-  const before = val.substring(0, blockStart);
-  const block = val.substring(blockStart, blockEnd);
-  const after = val.substring(blockEnd);
-  const lines = block.split('\n');
-  let removedFirst = 0, totalRemoved = 0, firstDone = false;
-  const newLines = lines.map(line => {
-    let removed = 0, nl = line;
-    for (let j = 0; j < indentSize && nl.length > 0 && nl[0] === ' '; j++) { nl = nl.substring(1); removed++; }
-    if (!firstDone) { removedFirst = removed; firstDone = true; }
-    totalRemoved += removed; return nl;
-  });
-  const newBlock = newLines.join('\n');
-  const oldText = editorEl.value;
-  editorEl.value = before + newBlock + after;
-  editorEl.selectionStart = Math.max(blockStart, start - removedFirst);
-  editorEl.selectionEnd = end - totalRemoved;
-  adjustHighlightsOnEdit(oldText, editorEl.value);
-  recalcFoldsAfterEdit(oldText, editorEl.value);
-  previousText = editorEl.value;
-  render(); updateLineNumbers(); updateIndentGuides(); saveToStorage();
+  const edits = getSelectedLineStarts(text, start, end).map(pos => {
+    const leading = (text.slice(pos).match(/^[ \t]*/) || [''])[0];
+    const remove = leading.startsWith('\t') ? 1 : Math.min(indentSize, (leading.match(/^ */) || [''])[0].length);
+    return { start: pos, end: pos + remove, text: '' };
+  }).filter(edit => edit.end > edit.start);
+  applyEditorEdits(edits, start, end);
 }
 
 // ─────────────────────────────────────────────
@@ -1303,6 +1485,9 @@ function outdentLines() {
 // ─────────────────────────────────────────────
 function render() {
   const text = editorEl.value;
+  const isFolded = foldedRegions.length > 0;
+  editorEl.parentElement.classList.toggle('folded-preview', isFolded);
+  indentGuidesEl.style.display = isFolded ? 'none' : '';
   if (!text) { highlightLayer.innerHTML = ''; updateStatusHighlights(); return; }
 
   const lines = text.split('\n');
@@ -1336,12 +1521,15 @@ function render() {
 
   html += '\n';
   highlightLayer.innerHTML = html;
+  highlightLayer.title = isFolded ? 'Folded preview — click code to expand and edit' : '';
+  statusLeft.textContent = isFolded ? 'Folded preview · click code to edit' : 'Ready';
   updateStatusHighlights();
 }
 
 function renderLineHighlights(text, lineStart, lineEnd) {
   const sorted = highlights
-    .filter(h => h.end > lineStart && h.start < lineEnd)
+    .filter(h => Number.isInteger(h.start) && Number.isInteger(h.end) &&
+      h.end > lineStart && h.start < lineEnd && typeof h.category === 'string')
     .sort((a, b) => a.start - b.start);
 
   let html = '';
@@ -1352,7 +1540,8 @@ function renderLineHighlights(text, lineStart, lineEnd) {
     const hEnd = Math.min(h.end, lineEnd);
     if (hStart < pos) continue;
     if (hStart > pos) html += escapeHtml(text.slice(pos, hStart));
-    html += `<span class="hl-${h.category}">${escapeHtml(text.slice(hStart, hEnd))}</span>`;
+    const categoryClass = /^[a-z0-9_]+$/.test(h.category) ? h.category : 'invalid';
+    html += `<span class="hl-${categoryClass}">${escapeHtml(text.slice(hStart, hEnd))}</span>`;
     pos = hEnd;
   }
   if (pos < lineEnd) html += escapeHtml(text.slice(pos, lineEnd));
@@ -1389,9 +1578,12 @@ function updateLineNumbers() {
     row.style.lineHeight = lh + 'px';
 
     if (foldable.has(lineIdx) || isLineFolded(lineIdx)) {
-      const toggle = document.createElement('span');
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
       toggle.className = 'fold-toggle';
       toggle.textContent = isLineFolded(lineIdx) ? '▶' : '▼';
+      toggle.title = isLineFolded(lineIdx) ? 'Expand block' : 'Collapse block';
+      toggle.setAttribute('aria-label', toggle.title);
       toggle.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleFold(lineIdx);
@@ -1428,6 +1620,17 @@ function syncScroll() {
 // KEYBOARD SHORTCUTS
 // ─────────────────────────────────────────────
 function onKeyDown(e) {
+  // Let the IME commit composed text without inserting an extra newline.
+  if (e.isComposing || e.key === 'Process') return;
+  if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+    const key = e.key.toLowerCase();
+    if (key === 'z' || key === 'y') {
+      e.preventDefault();
+      changeHistory(key === 'y' || e.shiftKey ? 'redo' : 'undo');
+      return;
+    }
+  }
+
   // Auto-indent on Enter
   if (e.key === 'Enter') {
     e.preventDefault();
@@ -1437,21 +1640,25 @@ function onKeyDown(e) {
     const line = val.slice(lineStart, start);
     const indent = line.match(/^[\t ]*/)[0];
     const insert = '\n' + indent;
+    preInputSelection = [start, editorEl.selectionEnd];
     editorEl.value = val.substring(0, start) + insert + val.substring(editorEl.selectionEnd);
     editorEl.selectionStart = editorEl.selectionEnd = start + insert.length;
     onEditorInput();
     return;
   }
 
-  // Tab — insert spaces
-  if (e.key === 'Tab') {
+  // Tab indents selected lines instead of replacing (destroying) their text;
+  // Shift+Tab outdents, including when no text is selected.
+  if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
+    if (e.shiftKey) { outdentLines(); return; }
+    if (editorEl.selectionStart !== editorEl.selectionEnd) { indentLines(); return; }
     const start = editorEl.selectionStart;
-    const end = editorEl.selectionEnd;
     const val = editorEl.value;
     const spaces = ' '.repeat(indentSize);
-    editorEl.value = val.substring(0, start) + spaces + val.substring(end);
-    editorEl.selectionStart = editorEl.selectionEnd = start + indentSize;
+    preInputSelection = [start, start];
+    editorEl.value = val.slice(0, start) + spaces + val.slice(start);
+    editorEl.setSelectionRange(start + indentSize, start + indentSize);
     onEditorInput();
     return;
   }
@@ -1485,11 +1692,11 @@ function onKeyDown(e) {
       removeHighlight();
       return;
     }
-    const shortcutKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
-    const idx = shortcutKeys.indexOf(e.key);
-    if (idx !== -1 && categories[idx]) {
+    if (e.ctrlKey || e.metaKey) return;
+    const category = categories.find(cat => cat.shortcut === e.key.toLowerCase());
+    if (category) {
       e.preventDefault();
-      applyHighlight(categories[idx].id);
+      applyHighlight(category.id);
     }
   }
 }
@@ -1542,6 +1749,7 @@ function getThemeExtensions() {
   return exts;
 }
 
+let storageWarningShown = false;
 function saveToStorage() {
   const data = {
     text: editorEl.value,
@@ -1563,7 +1771,16 @@ function saveToStorage() {
     importedSyntaxThemes: getImportedSyntaxThemes(),
     importedUIThemes: getImportedUIThemes(),
   };
-  localStorage.setItem('chromatura_data', JSON.stringify(data));
+  try {
+    localStorage.setItem('chromatura_data', JSON.stringify(data));
+  } catch (error) {
+    console.warn('Unable to save editor data:', error);
+    if (!storageWarningShown) {
+      const full = error.name === 'QuotaExceededError';
+      showToast(full ? 'Storage full — export a project backup' : 'Browser storage unavailable — export a backup');
+      storageWarningShown = true;
+    }
+  }
 }
 
 const _baseSaveToStorage = saveToStorage;
@@ -1592,7 +1809,8 @@ function loadFromStorage() {
     }
     if (data.customCategories && data.customCategories.length > 0) {
       for (const cat of data.customCategories) {
-        if (!categories.some(c => c.id === cat.id)) categories.push(cat);
+        if (cat && typeof cat.id === 'string' && /^[a-z0-9_]+$/.test(cat.id) &&
+            typeof cat.label === 'string' && !categories.some(c => c.id === cat.id)) categories.push(cat);
       }
     }
     if (data.themeExtensions) {
@@ -1617,6 +1835,12 @@ function loadFromStorage() {
           UI_THEMES[id] = theme;
         }
       }
+    }
+
+    // Older versions displayed keyboard hints for custom categories but never
+    // actually assigned their shortcuts.
+    for (const cat of categories) {
+      if (!cat.shortcut) cat.shortcut = getNextShortcut();
     }
 
     // Restore UI theme selection
@@ -1694,6 +1918,14 @@ function exportData() {
     foldedRegions,
     currentUIThemeId,
     customUIColors,
+    importedSyntaxThemes: getImportedSyntaxThemes(),
+    importedUIThemes: getImportedUIThemes(),
+    files: files.map(file => file.id === activeFileId
+      ? { ...file, text: editorEl.value, highlights: [...highlights], foldedRegions: [...foldedRegions] }
+      : file),
+    folders,
+    activeFileId,
+    fileExplorerOpen,
     exportedAt: new Date().toISOString(),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1711,6 +1943,16 @@ function importData(e) {
   reader.onload = () => {
     try {
       const data = JSON.parse(reader.result);
+      if (data.importedSyntaxThemes && typeof data.importedSyntaxThemes === 'object') {
+        for (const [id, theme] of Object.entries(data.importedSyntaxThemes)) {
+          if (/^[a-z0-9_]+$/.test(id) && theme && theme.colors) THEMES[id] = theme;
+        }
+      }
+      if (data.importedUIThemes && typeof data.importedUIThemes === 'object') {
+        for (const [id, theme] of Object.entries(data.importedUIThemes)) {
+          if (/^[a-z0-9_]+$/.test(id) && theme && theme.bg && theme.editorBg && theme.fg) UI_THEMES[id] = theme;
+        }
+      }
       if (data.text !== undefined) { editorEl.value = data.text; previousText = data.text; }
       if (data.highlights) highlights = data.highlights;
       if (data.themeId && THEMES[data.themeId]) currentThemeId = data.themeId;
@@ -1726,13 +1968,41 @@ function importData(e) {
       }
       if (data.customCategories) {
         for (const cat of data.customCategories) {
-          if (!categories.some(c => c.id === cat.id)) categories.push(cat);
+          if (cat && typeof cat.id === 'string' && /^[a-z0-9_]+$/.test(cat.id) &&
+            typeof cat.label === 'string' && !categories.some(c => c.id === cat.id)) categories.push(cat);
         }
       }
       if (data.themeExtensions) {
         for (const [themeId, ext] of Object.entries(data.themeExtensions)) {
           if (THEMES[themeId]) Object.assign(THEMES[themeId].colors, ext);
         }
+      }
+
+      // Modern exports include the entire file tree; legacy exports still
+      // import into the active file as before.
+      if (Array.isArray(data.files) && data.files.length > 0) {
+        const validFiles = data.files.filter(f => typeof f.id === 'string' && typeof f.name === 'string' && typeof f.text === 'string');
+        if (validFiles.length) {
+          files = validFiles;
+          historyByFile.clear();
+          folders = Array.isArray(data.folders) ? data.folders : [];
+          fileExplorerOpen = !!data.fileExplorerOpen;
+          document.getElementById('file-explorer').classList.toggle('open', fileExplorerOpen);
+          document.getElementById('file-explorer').inert = !fileExplorerOpen;
+          document.getElementById('file-explorer-tab').setAttribute('aria-expanded', String(fileExplorerOpen));
+          document.getElementById('file-explorer-tab').classList.toggle('active', fileExplorerOpen);
+          updateMobileBackdrop();
+          activeFileId = files.some(f => f.id === data.activeFileId) ? data.activeFileId : files[0].id;
+          const activeFile = files.find(f => f.id === activeFileId);
+          editorEl.value = activeFile.text;
+          previousText = activeFile.text;
+          highlights = Array.isArray(activeFile.highlights) ? [...activeFile.highlights] : [];
+          foldedRegions = Array.isArray(activeFile.foldedRegions) ? [...activeFile.foldedRegions] : [];
+        }
+      }
+
+      for (const cat of categories) {
+        if (!cat.shortcut) cat.shortcut = getNextShortcut();
       }
 
       // Restore UI theme
@@ -1745,10 +2015,11 @@ function importData(e) {
       applyUITheme(customUIColors || UI_THEMES[currentUIThemeId]);
 
       updateDynamicStyles(); applyTheme(currentThemeId);
-      applyFont(selectedFontFamily); applyLineHeight(editorLineHeight);
+      applyFont(selectedFontFamily); applyLineHeight(editorLineHeight); applyIndentSize();
       buildSidebar(); render(); updateLineNumbers();
       updateHelpContent(); updateScrollPadding();
-      updateIndentGuides(); saveToStorage();
+      updateIndentGuides(); buildFileList(); updateStatusFileName();
+      updateCursorStatus(); saveToStorage();
       showToast('Imported successfully!');
     } catch (err) {
       showToast('Invalid file format');
@@ -3396,22 +3667,28 @@ function deleteUITheme(id) {
 let files = [];
 let folders = [];
 let activeFileId = null;
-let fileExplorerOpen = false;
+let fileExplorerOpen = window.innerWidth > 768;
 
 function generateFileId() {
   return 'file_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
 }
 
-function createNewFile(name = null) {
+function createNewFile(name = null, destinationFolderId = undefined) {
   // Save current file first
   saveCurrentFileState();
 
   const id = generateFileId();
   const fileName = name || generateFileName();
+  const parent = destinationFolderId === undefined
+    ? (files.find(f => f.id === activeFileId)?.folderId || null)
+    : destinationFolderId;
+  const folderId = folders.some(f => f.id === parent) ? parent : null;
+  if (folderId) folders.find(f => f.id === folderId).collapsed = false;
 
   const file = {
     id,
     name: fileName,
+    folderId,
     text: '',
     highlights: [],
     foldedRegions: [],
@@ -3420,7 +3697,9 @@ function createNewFile(name = null) {
   };
 
   files.push(file);
-  switchToFile(id);
+  document.getElementById('explorer-search').value = '';
+  switchToFile(id, true);
+  if (fileExplorerOpen) renameFile(id, true);
   showToast(`Created "${fileName}"`);
   return file;
 }
@@ -3448,8 +3727,10 @@ function createNewFolder(name = null) {
     collapsed: false,
   };
   folders.push(folder);
+  document.getElementById('explorer-search').value = '';
   buildFileList();
   saveFilesToStorage();
+  if (fileExplorerOpen) renameFolder(folder.id);
   showToast(`Created folder "${folderName}"`);
   return folder;
 }
@@ -3505,7 +3786,10 @@ function renameFolder(id) {
   input.focus();
   input.select();
 
+  let committed = false;
   function commit() {
+    if (committed) return;
+    committed = true;
     const newName = input.value.trim() || originalName;
     folder.name = newName;
     buildFileList();
@@ -3538,7 +3822,7 @@ function saveCurrentFileState() {
   file.modifiedAt = new Date().toISOString();
 }
 
-function switchToFile(id) {
+function switchToFile(id, keepExplorerOpen = false) {
   // Save current state before switching
   if (activeFileId && activeFileId !== id) {
     saveCurrentFileState();
@@ -3564,10 +3848,11 @@ function switchToFile(id) {
   updateScrollPadding();
   updateStatusFileName();
   buildFileList();
+  if (!keepExplorerOpen && window.matchMedia('(max-width: 768px)').matches) setFileExplorerOpen(false);
   saveAllToStorage();
 }
 
-function renameFile(id) {
+function renameFile(id, closeOnCommit = false) {
   const file = files.find(f => f.id === id);
   if (!file) return;
 
@@ -3586,12 +3871,16 @@ function renameFile(id) {
   input.focus();
   input.select();
 
+  let committed = false;
   function commit() {
+    if (committed) return;
+    committed = true;
     const newName = input.value.trim() || originalName;
     file.name = newName;
     file.modifiedAt = new Date().toISOString();
     updateStatusFileName();
     buildFileList();
+    if (closeOnCommit && window.matchMedia('(max-width: 768px)').matches) setFileExplorerOpen(false);
     saveAllToStorage();
   }
 
@@ -3616,6 +3905,7 @@ function deleteFile(id) {
 
   const idx = files.findIndex(f => f.id === id);
   files.splice(idx, 1);
+  historyByFile.delete(id);
 
   // If we deleted the active file, switch to another
   if (activeFileId === id) {
@@ -3638,6 +3928,7 @@ function duplicateFile(id) {
   const newFile = {
     id: generateFileId(),
     name: source.name + ' (copy)',
+    folderId: source.folderId || null,
     text: source.text,
     highlights: source.highlights ? JSON.parse(JSON.stringify(source.highlights)) : [],
     foldedRegions: source.foldedRegions ? [...source.foldedRegions] : [],
@@ -3650,179 +3941,239 @@ function duplicateFile(id) {
   showToast(`Duplicated as "${newFile.name}"`);
 }
 
-function buildFileList() {
-  const list = document.getElementById('file-list');
-  list.innerHTML = '';
-
-  if (files.length === 0 && folders.length === 0) {
-    list.innerHTML = '<div class="file-empty-state">No files yet</div>';
-    return;
+// Keep the explorer simple: one row action per item and a single contextual menu.
+let explorerContextReturnFocus = null;
+function closeExplorerContextMenu(restoreFocus = false) {
+  const menu = document.getElementById('explorer-context-menu');
+  if (menu.hidden) return;
+  menu.hidden = true;
+  menu.replaceChildren();
+  if (restoreFocus && explorerContextReturnFocus?.isConnected) explorerContextReturnFocus.focus();
+  explorerContextReturnFocus = null;
+}
+function openExplorerContextMenu(kind, id, anchor, event = null) {
+  closeExplorerContextMenu();
+  const menu = document.getElementById('explorer-context-menu');
+  explorerContextReturnFocus = anchor;
+  const entries = kind === 'folder'
+    ? [
+        ['New file in folder', () => createNewFile(null, id)],
+        ['Rename folder', () => renameFolder(id)],
+        ['Delete folder', () => deleteFolder(id), true]
+      ]
+    : [
+        ['Rename', () => renameFile(id)],
+        ['Duplicate', () => duplicateFile(id)],
+        ['Move to folder…', () => openMoveFileDialog(id)],
+        ['Delete', () => deleteFile(id), true]
+      ];
+  for (const [label, action, destructive] of entries) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'context-menu-item' + (destructive ? ' destructive' : '');
+    btn.textContent = label;
+    btn.setAttribute('role', 'menuitem');
+    btn.addEventListener('click', e => { e.stopPropagation(); closeExplorerContextMenu(); action(); });
+    menu.appendChild(btn);
   }
+  menu.hidden = false;
+  const bounds = anchor.getBoundingClientRect();
+  const width = menu.offsetWidth, height = menu.offsetHeight;
+  const x = event ? event.clientX : bounds.right;
+  const y = event ? event.clientY : bounds.bottom;
+  menu.style.left = Math.max(8, Math.min(x, window.innerWidth - width - 8)) + 'px';
+  menu.style.top = Math.max(8, Math.min(y, window.innerHeight - height - 8)) + 'px';
+  menu.querySelector('button')?.focus();
+}
 
-  // Render folders first, then root-level files
-  for (const folder of folders) {
+document.getElementById('explorer-context-menu').addEventListener('keydown', e => {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  e.preventDefault();
+  const buttons = [...e.currentTarget.querySelectorAll('button')];
+  const step = e.key === 'ArrowDown' ? 1 : -1;
+  const current = Math.max(0, buttons.indexOf(document.activeElement));
+  buttons[(current + step + buttons.length) % buttons.length]?.focus();
+});
+
+function moveFileToFolder(fileId, folderId) {
+  const file = files.find(f => f.id === fileId);
+  if (!file || (folderId && !folders.some(f => f.id === folderId))) return;
+  file.folderId = folderId;
+  if (folderId) folders.find(f => f.id === folderId).collapsed = false;
+  buildFileList();
+  saveFilesToStorage();
+}
+function openMoveFileDialog(id) {
+  const file = files.find(f => f.id === id);
+  if (!file) return;
+  const modal = document.getElementById('move-file-modal');
+  document.getElementById('move-file-name').textContent = file.name;
+  const select = document.getElementById('move-file-target');
+  select.replaceChildren();
+  for (const folder of [{ id: '', name: 'Project root' }, ...folders]) {
+    const option = document.createElement('option');
+    option.value = folder.id;
+    option.textContent = folder.name;
+    select.appendChild(option);
+  }
+  select.value = file.folderId || '';
+  modal.dataset.fileId = id;
+  modal.classList.add('open');
+  select.focus();
+}
+function attachExplorerRowActions(row, kind, id) {
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.className = 'file-row-more';
+  more.textContent = '⋯';
+  more.title = kind === 'folder' ? 'Folder actions' : 'File actions';
+  more.setAttribute('aria-label', more.title);
+  more.addEventListener('click', e => {
+    e.stopPropagation();
+    const menu = document.getElementById('explorer-context-menu');
+    if (!menu.hidden && explorerContextReturnFocus === more) { closeExplorerContextMenu(true); return; }
+    openExplorerContextMenu(kind, id, more);
+  });
+  row.addEventListener('contextmenu', e => { e.preventDefault(); openExplorerContextMenu(kind, id, row, e); });
+  row.addEventListener('keydown', e => {
+    if (kind === 'folder' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+      const folder = folders.find(f => f.id === id);
+      const expand = e.key === 'ArrowRight';
+      if (folder && folder.collapsed === expand) { e.preventDefault(); toggleFolder(id); }
+    }
+    else if (e.key === 'F2') { e.preventDefault(); kind === 'folder' ? renameFolder(id) : renameFile(id); }
+    else if (e.key === 'F10' && e.shiftKey) { e.preventDefault(); openExplorerContextMenu(kind, id, row); }
+    else if (e.key === 'Enter' || e.key === ' ') {
+      if (e.target !== row) return;
+      e.preventDefault();
+      kind === 'folder' ? toggleFolder(id) : switchToFile(id);
+    }
+  });
+  row.appendChild(more);
+}
+function appendExplorerHeading(list, title, count, rootDrop = false) {
+  const heading = document.createElement('div');
+  heading.className = 'explorer-group-heading';
+  heading.textContent = `${title}  ·  ${count}`;
+  if (rootDrop) {
+    heading.dataset.rootDrop = 'true';
+    heading.title = 'Drop files here to move them to the project root';
+  }
+  list.appendChild(heading);
+  return heading;
+}
+let fileListRendering = false;
+function buildFileList() {
+  if (fileListRendering) return;
+  fileListRendering = true;
+  try {
+  closeExplorerContextMenu();
+  const list = document.getElementById('file-list');
+  const filter = (document.getElementById('explorer-search')?.value || '').trim().toLocaleLowerCase();
+  list.replaceChildren();
+  document.getElementById('explorer-count').textContent = `${files.length} file${files.length === 1 ? '' : 's'}`;
+  const sortedFolders = [...folders].sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  const sortedFiles = fs => [...fs].sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  let rendered = 0;
+  if (!filter && sortedFolders.length) appendExplorerHeading(list, 'FOLDERS', sortedFolders.length);
+  for (const folder of sortedFolders) {
+    const children = sortedFiles(files.filter(f => f.folderId === folder.id));
+    const matchesFolder = folder.name.toLocaleLowerCase().includes(filter);
+    const visibleChildren = !filter || matchesFolder ? children : children.filter(f => f.name.toLocaleLowerCase().includes(filter));
+    if (filter && !matchesFolder && visibleChildren.length === 0) continue;
     const folderEl = document.createElement('div');
     folderEl.className = 'folder-item';
     folderEl.dataset.id = folder.id;
-
+    folderEl.setAttribute('role', 'treeitem');
+    folderEl.tabIndex = 0;
+    folderEl.setAttribute('aria-expanded', String(!folder.collapsed || !!filter));
+    folderEl.title = folder.name;
     const arrow = document.createElement('span');
     arrow.className = 'folder-item-arrow';
-    arrow.textContent = folder.collapsed ? '▶' : '▼';
-
+    arrow.textContent = (!folder.collapsed || filter) ? '⌄' : '›';
     const icon = document.createElement('span');
-    icon.className = 'file-item-icon';
-    icon.textContent = folder.collapsed ? '📁' : '📂';
-
+    icon.className = 'file-item-icon folder-icon';
+    icon.textContent = '▣';
+    icon.setAttribute('aria-hidden', 'true');
     const name = document.createElement('span');
     name.className = 'folder-item-name';
     name.textContent = folder.name;
-
-    const actions = document.createElement('div');
-    actions.className = 'file-item-actions';
-
-    const renameBtn = document.createElement('button');
-    renameBtn.className = 'file-item-action-btn';
-    renameBtn.textContent = '✏️';
-    renameBtn.title = 'Rename';
-    renameBtn.addEventListener('click', (e) => { e.stopPropagation(); renameFolder(folder.id); });
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'file-item-action-btn delete';
-    delBtn.textContent = '✕';
-    delBtn.title = 'Delete folder';
-    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteFolder(folder.id); });
-
-    actions.appendChild(renameBtn);
-    actions.appendChild(delBtn);
-
-    folderEl.appendChild(arrow);
-    folderEl.appendChild(icon);
-    folderEl.appendChild(name);
-    folderEl.appendChild(actions);
-
-    // Click to toggle collapse
-    folderEl.addEventListener('click', () => toggleFolder(folder.id));
-    // Double-click to rename
-    folderEl.addEventListener('dblclick', (e) => { e.preventDefault(); renameFolder(folder.id); });
-
-    // Drag-over: accept file drops
-    folderEl.addEventListener('dragover', (e) => {
-      if (e.dataTransfer.types.includes('text/file-id')) {
-        e.preventDefault();
-        folderEl.classList.add('drag-over');
-      }
+    const count = document.createElement('span');
+    count.className = 'folder-item-count';
+    count.textContent = String(children.length);
+    folderEl.append(arrow, icon, name, count);
+    attachExplorerRowActions(folderEl, 'folder', folder.id);
+    folderEl.addEventListener('click', e => { if (!e.target.closest('button')) toggleFolder(folder.id); });
+    folderEl.addEventListener('dragover', e => {
+      if (!e.dataTransfer.types.includes('text/file-id')) return;
+      e.preventDefault(); folderEl.classList.add('drag-over');
     });
-    folderEl.addEventListener('dragleave', () => folderEl.classList.remove('drag-over'));
-    folderEl.addEventListener('drop', (e) => {
-      e.preventDefault();
-      folderEl.classList.remove('drag-over');
-      const fileId = e.dataTransfer.getData('text/file-id');
-      if (fileId) {
-        const file = files.find(f => f.id === fileId);
-        if (file) {
-          file.folderId = folder.id;
-          buildFileList();
-          saveFilesToStorage();
-        }
-      }
+    folderEl.addEventListener('dragleave', e => { if (!folderEl.contains(e.relatedTarget)) folderEl.classList.remove('drag-over'); });
+    folderEl.addEventListener('drop', e => {
+      e.preventDefault(); e.stopPropagation(); folderEl.classList.remove('drag-over');
+      moveFileToFolder(e.dataTransfer.getData('text/file-id'), folder.id);
     });
-
     list.appendChild(folderEl);
-
-    // Render files inside this folder (indented)
-    if (!folder.collapsed) {
-      const filesInFolder = files.filter(f => f.folderId === folder.id);
-      for (const file of filesInFolder) {
-        list.appendChild(buildFileItem(file, true));
-      }
+    rendered++;
+    if (!folder.collapsed || filter) {
+      for (const file of visibleChildren) { list.appendChild(buildFileItem(file, true)); rendered++; }
     }
   }
-
-  // Render root-level files (no folder)
-  const rootFiles = files.filter(f => !f.folderId);
-  for (const file of rootFiles) {
-    list.appendChild(buildFileItem(file, false));
+  const rootFiles = sortedFiles(files.filter(f => !f.folderId || !folders.some(folder => folder.id === f.folderId)));
+  const visibleRoot = filter ? rootFiles.filter(f => f.name.toLocaleLowerCase().includes(filter)) : rootFiles;
+  // Always show a root target in normal mode; filtered results stay uncluttered.
+  if (!filter || visibleRoot.length) appendExplorerHeading(list, 'FILES', rootFiles.length, true);
+  for (const file of visibleRoot) { list.appendChild(buildFileItem(file, false)); rendered++; }
+  if (!rendered) {
+    const empty = document.createElement('div');
+    empty.className = 'file-empty-state';
+    empty.textContent = filter ? 'No matching files or folders' : 'No files yet';
+    list.appendChild(empty);
   }
+  } finally { fileListRendering = false; }
 }
-
 function buildFileItem(file, indented) {
   const item = document.createElement('div');
   item.className = 'file-item' + (file.id === activeFileId ? ' active' : '') + (indented ? ' file-item-indented' : '');
   item.dataset.id = file.id;
   item.draggable = true;
-
-  // Icon
+  item.tabIndex = 0;
+  item.setAttribute('role', 'treeitem');
+  item.setAttribute('aria-selected', String(file.id === activeFileId));
+  item.title = file.name;
   const icon = document.createElement('span');
   icon.className = 'file-item-icon';
-  icon.textContent = '📄';
-
-  // Name
+  icon.textContent = '▤';
+  icon.setAttribute('aria-hidden', 'true');
   const name = document.createElement('span');
   name.className = 'file-item-name';
   name.textContent = file.name;
-
-  // Meta info (line count)
-  const meta = document.createElement('span');
-  meta.className = 'file-item-meta';
-  const lineCount = file.text ? file.text.split('\n').length : 0;
-  const hlCount = file.highlights ? file.highlights.length : 0;
-  meta.textContent = `${lineCount}L`;
-  meta.title = `${lineCount} lines, ${hlCount} highlights`;
-
-  // Action buttons (shown on hover)
-  const actions = document.createElement('div');
-  actions.className = 'file-item-actions';
-
-  const renameBtn = document.createElement('button');
-  renameBtn.className = 'file-item-action-btn';
-  renameBtn.textContent = '✏️';
-  renameBtn.title = 'Rename';
-  renameBtn.addEventListener('click', (e) => { e.stopPropagation(); renameFile(file.id); });
-
-  const dupeBtn = document.createElement('button');
-  dupeBtn.className = 'file-item-action-btn';
-  dupeBtn.textContent = '📋';
-  dupeBtn.title = 'Duplicate';
-  dupeBtn.addEventListener('click', (e) => { e.stopPropagation(); duplicateFile(file.id); });
-
-  const delBtn = document.createElement('button');
-  delBtn.className = 'file-item-action-btn delete';
-  delBtn.textContent = '✕';
-  delBtn.title = 'Delete';
-  delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteFile(file.id); });
-
-  actions.appendChild(renameBtn);
-  actions.appendChild(dupeBtn);
-  actions.appendChild(delBtn);
-
-  item.appendChild(icon);
-  item.appendChild(name);
-  item.appendChild(meta);
-  item.appendChild(actions);
-
-  // Click to switch
-  item.addEventListener('click', () => switchToFile(file.id));
-
-  // Double-click to rename
-  item.addEventListener('dblclick', (e) => { e.preventDefault(); renameFile(file.id); });
-
-  // Drag to move into a folder
-  item.addEventListener('dragstart', (e) => {
+  item.append(icon, name);
+  attachExplorerRowActions(item, 'file', file.id);
+  item.addEventListener('click', e => { if (!e.target.closest('button')) switchToFile(file.id); });
+  item.addEventListener('dragstart', e => {
     e.dataTransfer.setData('text/file-id', file.id);
     e.dataTransfer.effectAllowed = 'move';
     item.classList.add('dragging');
   });
   item.addEventListener('dragend', () => item.classList.remove('dragging'));
-
   return item;
 }
-
-function toggleFileExplorer() {
+function setFileExplorerOpen(open) {
+  fileExplorerOpen = Boolean(open);
   const explorer = document.getElementById('file-explorer');
-  fileExplorerOpen = !fileExplorerOpen;
+  const wasFocusedInside = explorer.contains(document.activeElement);
   explorer.classList.toggle('open', fileExplorerOpen);
+  explorer.inert = !fileExplorerOpen;
+  const trigger = document.getElementById('file-explorer-tab');
+  if (!fileExplorerOpen && wasFocusedInside) trigger.focus();
+  trigger.classList.toggle('active', fileExplorerOpen);
+  trigger.setAttribute('aria-expanded', String(fileExplorerOpen));
+  closeExplorerContextMenu();
+  updateMobileBackdrop();
   saveAllToStorage();
 }
+function toggleFileExplorer() { setFileExplorerOpen(!fileExplorerOpen); }
 
 function updateStatusFileName() {
   const el = document.getElementById('status-file');
@@ -3857,7 +4208,7 @@ function loadFilesFromStorage() {
       files = data.files;
       folders = data.folders || [];
       activeFileId = data.activeFileId || files[0].id;
-      fileExplorerOpen = data.fileExplorerOpen || false;
+      fileExplorerOpen = typeof data.fileExplorerOpen === 'boolean' ? data.fileExplorerOpen : fileExplorerOpen;
 
       // Validate active file exists
       if (!files.find(f => f.id === activeFileId)) {
@@ -3904,6 +4255,10 @@ function initFileExplorer() {
   // Apply explorer open state
   const explorer = document.getElementById('file-explorer');
   explorer.classList.toggle('open', fileExplorerOpen);
+  explorer.inert = !fileExplorerOpen;
+  document.getElementById('file-explorer-tab').setAttribute('aria-expanded', String(fileExplorerOpen));
+  document.getElementById('file-explorer-tab').classList.toggle('active', fileExplorerOpen);
+  updateMobileBackdrop();
 
   buildFileList();
   updateStatusFileName();
@@ -3929,7 +4284,10 @@ function deleteCategory(catId) {
   if (!confirm(`Delete category "${cat.label}"?\n\nAll highlights using this category will be removed.`)) return;
 
   // Remove all highlights using this category
-  highlights = highlights.filter(h => h.cat !== catId);
+  highlights = highlights.filter(h => h.category !== catId);
+  for (const file of files) {
+    file.highlights = (file.highlights || []).filter(h => h.category !== catId);
+  }
 
   // Remove from categories
   categories = categories.filter(c => c.id !== catId);
@@ -3940,7 +4298,7 @@ function deleteCategory(catId) {
   }
 
   buildSidebar();
-  render();
+  render(); updateHelpContent();
   updateDynamicStyles();
   saveToStorage();
   showToast(`Deleted category "${cat.label}"`);

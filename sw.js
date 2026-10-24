@@ -1,7 +1,7 @@
 // Chromatura Service Worker
 // Caches the app shell and Google Fonts for offline use.
 
-const CACHE_VERSION = 'chromatura-v2';
+const CACHE_VERSION = 'chromatura-v4';
 const FONT_CACHE = 'chromatura-fonts-v1';
 
 const APP_SHELL = [

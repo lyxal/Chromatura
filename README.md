@@ -24,23 +24,31 @@ Chromatura is a web-based tool. To run it locally:
 
 - Type or paste your code in the editor area.
 - Use the **sidebar** labeled "Highlight As" to select the category (language element/type) to highlight.  
-  - Select code in the editor, then click a button in the sidebar (e.g. a type such as "keyword", "comment", etc.) to apply a highlight style.
-- To remove highlights, select highlighted text and use the remove (eraser/trash) button.
+  - Select code in the editor, then click a button in the sidebar (e.g. "keyword", "comment") or use its listed `Alt` shortcut.
+- To remove highlights, select text and use **Remove** or `Alt+Backspace`.
+- Recoloring or removing a portion of an existing highlight leaves the unselected portions intact.
+- **Tab** indents selected lines, **Shift+Tab** outdents them, and **Enter** preserves the current line's indentation.
+- **Ctrl/⌘+Z** and **Ctrl/⌘+Shift+Z** undo/redo text edits, manual highlighting, and indentation (history is kept separately per file until reload).
+- Line wrapping is disabled in the editor to keep highlighting and line numbers aligned; long lines scroll horizontally.
+- Folding temporarily switches to a **read-only collapsed preview**. Click the preview to expand and edit again.
 
 ### File Operations
 
-- Use the **File** menu to import or export projects, and to export the current code and highlights as an image.
-- The **File Explorer** panel lets you add, switch, or delete files for multi-file projects.
+- Use the **Project** menu to open or download complete multi-file projects (including folders and highlights). Image and HTML exports are under **Export as**.
+- The **Explorer** toggle in the toolbar opens a searchable file tree. The desktop explorer starts open for a new project; on mobile, it works as a drawer.
+- Use **+** to create a file or the folder button to create a folder. New items can be renamed immediately.
+- The **⋯** menu on a file contains **Rename**, **Duplicate**, **Move to folder**, and **Delete**. Folder menus include **New file in folder**, **Rename**, and **Delete**. You can also drag files onto folders, or onto the **FILES** heading to move them to the root.
+- Files are sorted by name and grouped by folders. Selecting a file on mobile closes the explorer so the editor is visible.
 
 ### Themes
 
-- Use the **Theme** menu to pick or import new syntax and UI themes.
-- Easily edit colors or apply a random style with a single click.
+- Use the **Theme** menu to search and pick syntax themes, change the UI appearance, or edit syntax colours.
+- Less-used import, randomise, and management options are under **Theme tools**.
 
 ### Settings & Help
 
-- The ⚙️ **Settings** button allows for font, indentation, and display customization.
-- The ❓ **Help** button lists keyboard shortcuts.
+- The ⚙ **Settings** button allows font, indentation, and display customisation.
+- The **?** button lists keyboard shortcuts.
 
 ## Features
 
