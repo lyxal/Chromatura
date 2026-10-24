@@ -1968,8 +1968,9 @@ function loadFromStorage() {
     if (data.currentUIThemeId) {
       currentUIThemeId = data.currentUIThemeId;
     }
-    if (data.customUIColors) {
-      customUIColors = data.customUIColors;
+    if (Object.prototype.hasOwnProperty.call(data, 'customUIColors')) {
+      customUIColors = data.customUIColors && typeof data.customUIColors === 'object'
+        ? data.customUIColors : null;
     }
 
     // Validate that the saved syntax theme still exists
@@ -2134,8 +2135,15 @@ function importData(e) {
       if (data.currentUIThemeId && UI_THEMES[data.currentUIThemeId]) {
         currentUIThemeId = data.currentUIThemeId;
       }
-      if (data.customUIColors) {
-        customUIColors = data.customUIColors;
+      // A project explicitly exporting null means "use its selected preset".
+      // Previously a custom palette from the *previous* project survived here
+      // and visually overrode the imported UI theme until a manual reset.
+      if (Object.prototype.hasOwnProperty.call(data, 'customUIColors')) {
+        customUIColors = data.customUIColors && typeof data.customUIColors === 'object'
+          ? data.customUIColors : null;
+      } else if (data.currentUIThemeId && UI_THEMES[data.currentUIThemeId]) {
+        // Older projects can specify a preset without a custom palette field.
+        customUIColors = null;
       }
       applyUITheme(customUIColors || UI_THEMES[currentUIThemeId]);
 
@@ -3121,23 +3129,57 @@ const UI_THEMES = {
 let currentUIThemeId = 'catppuccin_mocha';
 let customUIColors = null;
 
+// Resolve incomplete imported/legacy palettes before updating any CSS variables.
+// A half-defined palette used to leave some controls with stale or invalid colours.
+function resolveUITheme(theme) {
+  const base = UI_THEMES.catppuccin_mocha;
+  const source = theme && typeof theme === 'object' ? theme : {};
+  const hex = key => /^#[0-9a-f]{6}$/i.test(source[key] || '') ? source[key] : base[key];
+  const bg = hex('bg'), editorBg = hex('editorBg'), fg = hex('fg');
+  const accent = hex('accent'), toolbar = hex('toolbar'), border = hex('border');
+  const optionalHex = (key, fallback) => /^#[0-9a-f]{6}$/i.test(source[key] || '') ? source[key] : fallback;
+  return {
+    bg, editorBg, fg, accent, toolbar, border,
+    buttonBg: optionalHex('buttonBg', border),
+    buttonHover: optionalHex('buttonHover', lightenHex(border, 12)),
+    lineNum: optionalHex('lineNum', blendHex(fg, editorBg, 0.45)),
+    scrollThumb: optionalHex('scrollThumb', border),
+    accentHover: optionalHex('accentHover', lightenHex(accent, 12)),
+    selection: typeof source.selection === 'string' && CSS.supports('color', source.selection)
+      ? source.selection : hexToRgba(accent, 0.25),
+  };
+}
+
+function isLightUITheme(hex) {
+  const rgb = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map(c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) > 0.45;
+}
+
 function applyUITheme(theme) {
+  const ui = resolveUITheme(theme);
   const root = document.documentElement;
-  root.style.setProperty('--bg', theme.bg);
-  root.style.setProperty('--editor-bg', theme.editorBg);
-  root.style.setProperty('--editor-fg', theme.fg);
-  root.style.setProperty('--accent', theme.accent);
-  root.style.setProperty('--accent-hover', theme.accentHover || theme.accent);
-  root.style.setProperty('--toolbar-bg', theme.toolbar);
-  root.style.setProperty('--toolbar-border', theme.border);
-  root.style.setProperty('--button-bg', theme.buttonBg);
-  root.style.setProperty('--button-fg', theme.fg);
-  root.style.setProperty('--button-hover', theme.buttonHover);
-  root.style.setProperty('--line-num', theme.lineNum);
-  root.style.setProperty('--scrollbar-thumb', theme.scrollThumb);
-  root.style.setProperty('--scrollbar-track', theme.editorBg);
-  root.style.setProperty('--selection', theme.selection);
-  root.style.setProperty('--indent-guide-active-color', hexToRgba(theme.accent, 0.35));
+  root.style.setProperty('--bg', ui.bg);
+  root.style.setProperty('--editor-bg', ui.editorBg);
+  root.style.setProperty('--editor-fg', ui.fg);
+  root.style.setProperty('--accent', ui.accent);
+  root.style.setProperty('--accent-hover', ui.accentHover);
+  root.style.setProperty('--toolbar-bg', ui.toolbar);
+  root.style.setProperty('--toolbar-border', ui.border);
+  root.style.setProperty('--button-bg', ui.buttonBg);
+  root.style.setProperty('--button-fg', ui.fg);
+  root.style.setProperty('--button-hover', ui.buttonHover);
+  root.style.setProperty('--line-num', ui.lineNum);
+  root.style.setProperty('--scrollbar-thumb', ui.scrollThumb);
+  root.style.setProperty('--scrollbar-track', ui.editorBg);
+  root.style.setProperty('--selection', ui.selection);
+  root.style.setProperty('--indent-guide-color', hexToRgba(ui.border, 0.4));
+  root.style.setProperty('--indent-guide-active-color', hexToRgba(ui.accent, 0.35));
+  // Native form controls, scrollbar rendering, and installed-app chrome should
+  // also match the selected UI palette, particularly for light presets.
+  root.style.colorScheme = isLightUITheme(ui.bg) ? 'light' : 'dark';
+  const browserTheme = document.querySelector('meta[name="theme-color"]');
+  if (browserTheme) browserTheme.setAttribute('content', ui.toolbar);
 }
 
 function hexToRgba(hex, alpha) {
@@ -3189,7 +3231,7 @@ function openUIThemeModal() {
     grid.appendChild(card);
   }
 
-  fillUIColorPickers(draftUIColors || UI_THEMES[draftUIThemeId]);
+  fillUIColorPickers(resolveUITheme(draftUIColors || UI_THEMES[draftUIThemeId]));
   updateUIThemeSelection();
   document.getElementById('ui-theme-modal').classList.add('open');
 }
@@ -3202,8 +3244,8 @@ function updateUIThemeSelection() {
   });
   const hint = document.getElementById('ui-theme-selection-hint');
   if (hint) hint.textContent = draftUIColors
-    ? 'Custom colours · previewing changes'
-    : `${UI_THEMES[draftUIThemeId]?.name || 'UI theme'} · previewing changes`;
+    ? 'Custom appearance preview · click Apply to keep it'
+    : `${UI_THEMES[draftUIThemeId]?.name || 'UI theme'} preview · click Apply to keep it`;
 }
 
 function fillUIColorPickers(theme) {

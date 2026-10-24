@@ -74,3 +74,7 @@ Want to contribute? File an issue or open a pull request!
 - The eight main highlight categories use **Alt+1** through **Alt+8** in the order shown in the sidebar. Additional built-in categories use **Alt+9**, **Alt+0**, **Alt+-**, and **Alt+=**. This changes some default shortcuts from older releases, but preserves all category IDs and highlighted content.
 - **Theme → Edit syntax colours** now saves edits to the selected syntax theme, so switching away and back retains its palette. Existing saved `customColors` values are migrated automatically.
 - **Theme → UI appearance** controls the application's chrome (background, toolbar, etc.); syntax-theme colour changes affect highlighted tokens only.
+
+### UI appearance reliability
+
+UI Appearance (Theme → UI appearance…) previews changes until **Apply**. **Cancel** restores the saved appearance. UI appearance is independent of syntax highlighting. Importing a project with a saved UI preset now clears any old custom palette rather than allowing it to mask the imported appearance; browser controls and chrome also match light/dark themes.
