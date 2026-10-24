@@ -292,14 +292,14 @@ const DEFAULT_SHORTCUTS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'
 const EXTRA_SHORTCUTS = ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
 let categories = [
   { id: 'keyword', label: 'Keyword', shortcut: '1', bold: true, italic: false },
-  { id: 'string', label: 'String', shortcut: '2', bold: false, italic: false },
-  { id: 'comment', label: 'Comment', shortcut: '3', bold: false, italic: true },
-  { id: 'function', label: 'Function', shortcut: '4', bold: false, italic: false },
+  { id: 'function', label: 'Function', shortcut: '2', bold: false, italic: false },
+  { id: 'string', label: 'String', shortcut: '3', bold: false, italic: false },
+  { id: 'number', label: 'Number', shortcut: '4', bold: false, italic: false },
   { id: 'type', label: 'Type', shortcut: '5', bold: false, italic: false },
-  { id: 'number', label: 'Number', shortcut: '6', bold: false, italic: false },
-  { id: 'operator', label: 'Operator', shortcut: '7', bold: false, italic: false },
-  { id: 'variable', label: 'Variable', shortcut: '8', bold: false, italic: false },
-  { id: 'constant', label: 'Constant', shortcut: '9', bold: true, italic: false },
+  { id: 'variable', label: 'Variable', shortcut: '6', bold: false, italic: false },
+  { id: 'comment', label: 'Comment', shortcut: '7', bold: false, italic: true },
+  { id: 'constant', label: 'Constant', shortcut: '8', bold: true, italic: false },
+  { id: 'operator', label: 'Operator', shortcut: '9', bold: false, italic: false },
   { id: 'decorator', label: 'Decorator', shortcut: '0', bold: false, italic: true },
   { id: 'tag', label: 'Tag', shortcut: '-', bold: false, italic: false },
   { id: 'attribute', label: 'Attribute', shortcut: '=', bold: false, italic: false },
@@ -315,7 +315,27 @@ let showExtraCategories = false;
 // ─────────────────────────────────────────────
 let highlights = [];
 let currentThemeId = 'catppuccin';
+// Persist edits to each syntax theme, not just the most recently active theme.
+// This also migrates `customColors` saved by earlier Chromatura versions.
 let customColors = null;
+let syntaxThemeOverrides = {};
+const isThemeHex = value => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
+function restoreSyntaxThemeOverrides(data) {
+  const overrides = data.syntaxThemeOverrides && typeof data.syntaxThemeOverrides === 'object'
+    ? data.syntaxThemeOverrides : {};
+  // v1/v2 stored a single transient palette. Fold it into the named theme.
+  if (data.customColors && data.themeId && THEMES[data.themeId]) {
+    overrides[data.themeId] = { ...(overrides[data.themeId] || {}), ...data.customColors };
+  }
+  for (const [id, palette] of Object.entries(overrides)) {
+    if (!THEMES[id] || !palette || typeof palette !== 'object') continue;
+    const valid = Object.fromEntries(Object.entries(palette).filter(([key, value]) =>
+      /^[a-z0-9_]+$/.test(key) && isThemeHex(value)));
+    Object.assign(THEMES[id].colors, valid);
+    syntaxThemeOverrides[id] = { ...(syntaxThemeOverrides[id] || {}), ...valid };
+  }
+  customColors = null;
+}
 let indentSize = 4;
 let editorLineHeight = 1.6;
 let selectedFontFamily = ALL_FONTS[0].family;
@@ -676,7 +696,7 @@ function init() {
   new ResizeObserver(() => updateScrollPadding()).observe(editorEl.parentElement);
 
   themeSelect.addEventListener('change', () => {
-    currentThemeId = themeSelect.value; customColors = null;
+    currentThemeId = themeSelect.value;
     applyTheme(currentThemeId); render(); saveToStorage();
   });
 
@@ -950,7 +970,6 @@ function buildSyntaxThemePicker() {
     option.addEventListener('click', (e) => {
       e.stopPropagation();
       currentThemeId = id;
-      customColors = null;
       themeSelect.value = id;
       applyTheme(id);
       render();
@@ -961,13 +980,20 @@ function buildSyntaxThemePicker() {
     picker.appendChild(option);
   }
 }
-function getActiveColors() { return customColors || THEMES[currentThemeId].colors; }
+function getActiveColors() { return THEMES[currentThemeId].colors; }
 function applyTheme(id) {
-  const colors = getActiveColors(); const root = document.documentElement;
-  for (const [key, val] of Object.entries(colors)) root.style.setProperty(`--hl-${key}`, val);
-  for (const cat of categories) { if (!colors[cat.id]) { const idx = categories.indexOf(cat); root.style.setProperty(`--hl-${cat.id}`, generateColorForTheme(THEMES[id].colors, idx)); } }
+  if (!THEMES[id]) id = 'catppuccin';
+  currentThemeId = id;
+  const colors = THEMES[id].colors;
+  const root = document.documentElement;
+  for (const cat of categories) {
+    const index = categories.indexOf(cat);
+    const color = isThemeHex(colors[cat.id]) ? colors[cat.id] : generateColorForTheme(colors, index);
+    root.style.setProperty(`--hl-${cat.id}`, color);
+  }
   themeSelect.value = id;
-  buildSidebar(); // swatches are baked-in colors, not CSS vars — need a rebuild on every theme change
+  buildSidebar();
+  buildSyntaxThemePicker(); // keep active state and swatches in sync, including edited palettes
 }
 function openThemeEditor() {
   const container = document.getElementById('theme-color-rows'); container.innerHTML = ''; const colors = getActiveColors();
@@ -980,11 +1006,22 @@ function openThemeEditor() {
   document.getElementById('theme-modal').classList.add('open');
 }
 function saveThemeEdits() {
-  const inputs = document.querySelectorAll('#theme-color-rows input[type="color"]'); customColors = {};
-  for (const [key, val] of Object.entries(THEMES[currentThemeId].colors)) customColors[key] = val;
-  inputs.forEach(input => { customColors[input.dataset.cat] = input.value; });
-  applyTheme(currentThemeId); render(); document.getElementById('theme-modal').classList.remove('open');
-  showToast('Theme customized'); saveToStorage();
+  const edits = {};
+  document.querySelectorAll('#theme-color-rows input[type="color"]').forEach(input => {
+    if (isThemeHex(input.value)) edits[input.dataset.cat] = input.value;
+  });
+  // Save the palette *with its theme*. Previously these edits vanished after
+  // choosing another syntax theme because they lived in `customColors`.
+  Object.assign(THEMES[currentThemeId].colors, edits);
+  syntaxThemeOverrides[currentThemeId] = {
+    ...(syntaxThemeOverrides[currentThemeId] || {}), ...edits
+  };
+  customColors = null;
+  applyTheme(currentThemeId);
+  render();
+  document.getElementById('theme-modal').classList.remove('open');
+  showToast('Syntax colours saved for this theme');
+  saveToStorage();
 }
 
 // ─────────────────────────────────────────────
@@ -1090,8 +1127,7 @@ function buildSidebar() {
     const btn = document.createElement('button');
     btn.className = 'highlight-btn';
     const theme = THEMES[currentThemeId];
-    let color = (customColors && customColors[cat.id])
-      || (theme && theme.colors[cat.id])
+    let color = (theme && theme.colors[cat.id])
       || null;
     if (!color) {
       color = generateColorForTheme(theme.colors, idx);
@@ -1195,7 +1231,7 @@ function startCategoryColorDraft(editId = null) {
   const modal = document.getElementById('new-cat-modal');
   const colors = {};
   for (const [themeId, theme] of Object.entries(THEMES)) {
-    const existing = editId && (themeId === currentThemeId && customColors?.[editId] || theme.colors[editId]);
+    const existing = editId && theme.colors[editId];
     colors[themeId] = existing || generateColorForTheme(theme.colors, categories.length);
   }
   modal._categoryColors = colors;
@@ -1302,7 +1338,7 @@ function addNewCategory() {
   for (const [themeId, color] of Object.entries(modal._categoryColors || {})) {
     if (!THEMES[themeId] || !/^#[0-9a-fA-F]{6}$/.test(color)) continue;
     THEMES[themeId].colors[id] = color;
-    if (themeId === currentThemeId && customColors) customColors[id] = color;
+    if (syntaxThemeOverrides[themeId]?.[id]) syntaxThemeOverrides[themeId][id] = color;
   }
 
   modal._editCatId = null;
@@ -1837,7 +1873,8 @@ function saveToStorage() {
     text: editorEl.value,
     highlights,
     themeId: currentThemeId,
-    customColors,
+    customColors: null, // retained for older project readers
+    syntaxThemeOverrides,
     customCategories: categories.filter(c => !BUILTIN_IDS.has(c.id)),
     themeExtensions: getThemeExtensions(),
     indentSize,
@@ -1879,7 +1916,7 @@ function loadFromStorage() {
     if (data.text) { editorEl.value = data.text; previousText = data.text; }
     if (data.highlights) highlights = data.highlights;
     if (data.themeId) currentThemeId = data.themeId;
-    if (data.customColors) customColors = data.customColors;
+    // Legacy customColors are migrated by restoreSyntaxThemeOverrides().
     if (data.indentSize) indentSize = data.indentSize;
     if (data.editorLineHeight) editorLineHeight = data.editorLineHeight;
     if (data.selectedFontFamily) selectedFontFamily = data.selectedFontFamily;
@@ -1918,6 +1955,8 @@ function loadFromStorage() {
         }
       }
     }
+
+    restoreSyntaxThemeOverrides(data);
 
     // Older versions displayed keyboard hints for custom categories but never
     // actually assigned their shortcuts.
@@ -1987,7 +2026,8 @@ function exportData() {
     text: editorEl.value,
     highlights,
     themeId: currentThemeId,
-    customColors,
+    customColors: null, // retained for older project readers
+    syntaxThemeOverrides,
     customCategories: categories.filter(c => !BUILTIN_IDS.has(c.id)),
     themeExtensions: getThemeExtensions(),
     indentSize,
@@ -2038,7 +2078,7 @@ function importData(e) {
       if (data.text !== undefined) { editorEl.value = data.text; previousText = data.text; }
       if (data.highlights) highlights = data.highlights;
       if (data.themeId && THEMES[data.themeId]) currentThemeId = data.themeId;
-      if (data.customColors) customColors = data.customColors;
+      // Legacy customColors are migrated by restoreSyntaxThemeOverrides().
       if (data.indentSize) indentSize = data.indentSize;
       if (data.editorLineHeight) editorLineHeight = data.editorLineHeight;
       if (data.selectedFontFamily) selectedFontFamily = data.selectedFontFamily;
@@ -2059,6 +2099,9 @@ function importData(e) {
           if (THEMES[themeId]) Object.assign(THEMES[themeId].colors, ext);
         }
       }
+
+      // Restore per-theme syntax palette edits, including legacy customColors.
+      restoreSyntaxThemeOverrides(data);
 
       // Modern exports include the entire file tree; legacy exports still
       // import into the active file as before.
@@ -2176,7 +2219,6 @@ function updateImgPreview() {
 }
 
 function getThemeColors(themeId) {
-  if (customColors && themeId === currentThemeId) return { ...customColors };
   const base = { ...THEMES[themeId].colors };
   // Include any custom category colors
   for (const cat of categories) {
@@ -3374,7 +3416,6 @@ function importSyntaxTheme(e) {
 
       // Switch to it
       currentThemeId = id;
-      customColors = null;
       themeSelect.value = id;
       applyTheme(id);
       buildSyntaxThemePicker();

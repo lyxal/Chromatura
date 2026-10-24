@@ -1776,3 +1776,40 @@ header { min-height: 52px; padding: 8px 18px; gap: 20px; }
 #ui-theme-modal .ui-theme-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; padding-right: 5px; }
 #ui-theme-modal .modal-actions { flex-shrink: 0; border-top: 1px solid var(--toolbar-border); padding: 14px 0 0; margin-top: 12px; background: var(--bg); }
 #ui-theme-modal .modal { max-width: calc(100vw - 20px); }
+
+/* Theme menu: all rows and nested tools share one consistent content edge. */
+.dropdown-menu.theme-menu {
+  width: 306px;
+  max-width: calc(100vw - 20px);
+  padding: 9px;
+  overflow-x: hidden;
+}
+.theme-menu .dropdown-section { padding: 0; }
+.theme-menu .dropdown-label { padding: 5px 10px 1px; margin: 0 0 6px; }
+.theme-menu .menu-search { display: block; width: 100%; margin: 0; }
+.theme-menu .syntax-theme-picker { width: 100%; margin: 7px 0 0; }
+.theme-menu .syntax-theme-option,
+.theme-menu .dropdown-item,
+.theme-menu .menu-disclosure summary {
+  width: 100%; min-height: 36px; padding: 8px 10px;
+  text-align: left; border-radius: 7px;
+}
+.theme-menu .menu-disclosure { margin: 5px 0 0; padding: 0; }
+.theme-menu .menu-disclosure-content { padding: 0; }
+.theme-menu .menu-disclosure summary { gap: 10px; }
+.theme-menu .dropdown-rule { margin: 9px 0 5px; }
+.theme-menu .syntax-theme-name { min-width: 0; }
+@media (max-width: 680px) {
+  .dropdown-menu.theme-menu {
+    position: fixed;
+    top: 54px;
+    left: auto !important;
+    right: 10px !important;
+    width: min(306px, calc(100vw - 20px)) !important;
+    max-height: calc(100dvh - 66px);
+  }
+}
+@media (min-width: 681px) {
+  /* Anchor the wide picker inward from the Theme trigger instead of offscreen. */
+  .dropdown-menu.theme-menu { left: auto; right: 0; }
+}
