@@ -42,7 +42,7 @@ Chromatura is a web-based tool. To run it locally:
 
 ### Themes
 
-- Use the **Theme** menu to search and pick syntax themes, change the UI appearance, or edit syntax colours.
+- Use the **Theme** menu to search and pick syntax themes, change the UI appearance, or edit syntax colours. In **UI appearance**, choosing a preset or colour previews the result; **Apply** saves it, while **Cancel**, Escape, or clicking outside discards the preview.
 - Less-used import, randomise, and management options are under **Theme tools**.
 
 ### Settings & Help

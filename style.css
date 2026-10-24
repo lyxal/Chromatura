@@ -1740,3 +1740,14 @@ header { min-height: 52px; padding: 8px 18px; gap: 20px; }
   .controls .dropdown-trigger { padding: 6px 5px; font-size: .67rem; }
   .controls .toolbar-icon { width: 28px; min-width: 28px; }
 }
+
+/* UI appearance dialog: keyboard-accessible preset buttons and clearer commit UX */
+.ui-theme-card { appearance: none; font: inherit; color: inherit; text-align: inherit; padding: 0; }
+.ui-theme-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.ui-theme-guidance, .ui-theme-selection-hint { color: var(--line-num); font-size: .75rem; line-height: 1.6; }
+.ui-theme-guidance { margin: -5px 0 14px; }
+.ui-theme-selection-hint { margin: 12px 0 0; }
+#ui-theme-modal .modal { display: flex; flex-direction: column; overflow: hidden; max-height: min(86vh, 760px); }
+#ui-theme-modal .ui-theme-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; padding-right: 5px; }
+#ui-theme-modal .modal-actions { flex-shrink: 0; border-top: 1px solid var(--toolbar-border); padding: 14px 0 0; margin-top: 12px; background: var(--bg); }
+#ui-theme-modal .modal { max-width: calc(100vw - 20px); }

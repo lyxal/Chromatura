@@ -702,8 +702,11 @@ function init() {
   });
 
   document.getElementById('btn-ui-theme').addEventListener('click', openUIThemeModal);
-  document.getElementById('btn-ui-theme-cancel').addEventListener('click', () => document.getElementById('ui-theme-modal').classList.remove('open'));
+  document.getElementById('btn-ui-theme-cancel').addEventListener('click', cancelUIThemeModal);
   document.getElementById('btn-ui-theme-apply').addEventListener('click', applyCustomUITheme);
+  document.querySelectorAll('#ui-theme-modal input[type="color"]').forEach(input => {
+    input.addEventListener('input', previewCustomUITheme);
+  });
 
   document.getElementById('btn-export-html').addEventListener('click', openExportHtmlModal);
   document.getElementById('btn-html-cancel').addEventListener('click', () => document.getElementById('export-html-modal').classList.remove('open'));
@@ -798,7 +801,10 @@ function init() {
     closeToolbarMenus();
     closeExplorerContextMenu(true);
     const modal = document.querySelector('.modal-overlay.open');
-    if (modal) modal.classList.remove('open');
+    if (modal) {
+      if (modal.id === 'ui-theme-modal') cancelUIThemeModal();
+      else modal.classList.remove('open');
+    }
   });
   document.getElementById('theme-search').addEventListener('input', e => {
     const filter = e.target.value.trim().toLowerCase();
@@ -808,7 +814,11 @@ function init() {
   });
 
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+    overlay.addEventListener('click', e => {
+      if (e.target !== overlay) return;
+      if (overlay.id === 'ui-theme-modal') cancelUIThemeModal();
+      else overlay.classList.remove('open');
+    });
   });
 
   // File explorer may replace the editor contents with the restored active file.
@@ -3013,11 +3023,7 @@ function applyUITheme(theme) {
   root.style.setProperty('--scrollbar-thumb', theme.scrollThumb);
   root.style.setProperty('--scrollbar-track', theme.editorBg);
   root.style.setProperty('--selection', theme.selection);
-  root.style.setProperty('--indent-guide-active-color', theme.accent.replace(')', ', 0.35)').replace('rgb', 'rgba').replace('#', ''));
-
-  // Better active guide color from accent
-  const accentForGuide = theme.accent;
-  root.style.setProperty('--indent-guide-active-color', hexToRgba(accentForGuide, 0.35));
+  root.style.setProperty('--indent-guide-active-color', hexToRgba(theme.accent, 0.35));
 }
 
 function hexToRgba(hex, alpha) {
@@ -3027,13 +3033,24 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+// The appearance dialog is transactional: choosing a preset previews it, but
+// only Apply commits it. Cancel, Escape, and backdrop click all restore the
+// saved appearance. Colour-picker edits create a custom variant of the preset.
+let draftUIThemeId = null;
+let draftUIColors = null;
+
 function openUIThemeModal() {
+  draftUIThemeId = currentUIThemeId;
+  draftUIColors = customUIColors ? { ...customUIColors } : null;
+
   const grid = document.getElementById('ui-theme-grid');
-  grid.innerHTML = '';
+  grid.replaceChildren();
 
   for (const [id, theme] of Object.entries(UI_THEMES)) {
-    const card = document.createElement('div');
-    card.className = 'ui-theme-card' + (id === currentUIThemeId && !customUIColors ? ' active' : '');
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'ui-theme-card';
+    card.setAttribute('aria-pressed', 'false');
     card.innerHTML = `
       <div class="ui-preview">
         <div class="ui-preview-sidebar" style="background:${theme.toolbar};border-right:1px solid ${theme.border};"></div>
@@ -3044,27 +3061,35 @@ function openUIThemeModal() {
         </div>
       </div>
       <div class="ui-preview-statusbar" style="background:${theme.accent};"></div>
-      <div class="ui-theme-label">${theme.name}</div>
+      <div class="ui-theme-label"></div>
     `;
+    card.querySelector('.ui-theme-label').textContent = theme.name;
+    card.dataset.themeId = id;
     card.addEventListener('click', () => {
-      currentUIThemeId = id;
-      customUIColors = null;
-      applyUITheme(theme);
-      // Update active state
-      grid.querySelectorAll('.ui-theme-card').forEach(c => c.classList.remove('active'));
-      card.classList.add('active');
-      // Update color pickers
+      draftUIThemeId = id;
+      draftUIColors = null;
       fillUIColorPickers(theme);
-      saveToStorage();
+      applyUITheme(theme); // live preview, not saved yet
+      updateUIThemeSelection();
     });
     grid.appendChild(card);
   }
 
-  // Fill color pickers with current values
-  const active = customUIColors || UI_THEMES[currentUIThemeId];
-  fillUIColorPickers(active);
-
+  fillUIColorPickers(draftUIColors || UI_THEMES[draftUIThemeId]);
+  updateUIThemeSelection();
   document.getElementById('ui-theme-modal').classList.add('open');
+}
+
+function updateUIThemeSelection() {
+  document.querySelectorAll('#ui-theme-grid .ui-theme-card').forEach(card => {
+    const selected = !draftUIColors && card.dataset.themeId === draftUIThemeId;
+    card.classList.toggle('active', selected);
+    card.setAttribute('aria-pressed', String(selected));
+  });
+  const hint = document.getElementById('ui-theme-selection-hint');
+  if (hint) hint.textContent = draftUIColors
+    ? 'Custom colours · previewing changes'
+    : `${UI_THEMES[draftUIThemeId]?.name || 'UI theme'} · previewing changes`;
 }
 
 function fillUIColorPickers(theme) {
@@ -3076,7 +3101,7 @@ function fillUIColorPickers(theme) {
   document.getElementById('ui-color-border').value = theme.border;
 }
 
-function applyCustomUITheme() {
+function getCustomUIThemeFromPickers() {
   const bg = document.getElementById('ui-color-bg').value;
   const editorBg = document.getElementById('ui-color-editor-bg').value;
   const fg = document.getElementById('ui-color-fg').value;
@@ -3084,23 +3109,42 @@ function applyCustomUITheme() {
   const toolbar = document.getElementById('ui-color-toolbar').value;
   const border = document.getElementById('ui-color-border').value;
 
-  // Derive other colors
-  const buttonBg = border;
-  const buttonHover = lightenHex(border, 15);
-  const lineNum = blendHex(fg, editorBg, 0.45);
-  const scrollThumb = border;
-  const selection = hexToRgba(accent, 0.25);
-  const accentHover = lightenHex(accent, 15);
-
-  customUIColors = {
+  return {
     bg, editorBg, fg, accent, toolbar, border,
-    buttonBg, buttonHover, lineNum, scrollThumb, selection, accentHover,
+    buttonBg: border,
+    buttonHover: lightenHex(border, 15),
+    lineNum: blendHex(fg, editorBg, 0.45),
+    scrollThumb: border,
+    selection: hexToRgba(accent, 0.25),
+    accentHover: lightenHex(accent, 15),
   };
+}
 
-  applyUITheme(customUIColors);
+function previewCustomUITheme() {
+  if (!document.getElementById('ui-theme-modal').classList.contains('open')) return;
+  draftUIColors = getCustomUIThemeFromPickers();
+  applyUITheme(draftUIColors);
+  updateUIThemeSelection();
+}
+
+function cancelUIThemeModal() {
   document.getElementById('ui-theme-modal').classList.remove('open');
-  showToast('UI theme applied');
+  // The persisted state is unchanged until Apply is pressed.
+  applyUITheme(customUIColors || UI_THEMES[currentUIThemeId]);
+  draftUIThemeId = null;
+  draftUIColors = null;
+}
+
+function applyCustomUITheme() {
+  if (!document.getElementById('ui-theme-modal').classList.contains('open')) return;
+  currentUIThemeId = draftUIThemeId;
+  customUIColors = draftUIColors ? { ...draftUIColors } : null;
+  applyUITheme(customUIColors || UI_THEMES[currentUIThemeId]);
+  document.getElementById('ui-theme-modal').classList.remove('open');
+  draftUIThemeId = null;
+  draftUIColors = null;
   saveToStorage();
+  showToast(customUIColors ? 'Custom UI colours applied' : 'UI theme applied');
 }
 
 function lightenHex(hex, amount) {
@@ -3139,8 +3183,11 @@ function exportSyntaxTheme() {
 
 // ── UI Theme Export ──
 function exportUITheme() {
-  const theme = customUIColors || UI_THEMES[currentUIThemeId];
-  const name = customUIColors ? 'Custom UI Theme' : UI_THEMES[currentUIThemeId].name;
+  const previewing = document.getElementById('ui-theme-modal').classList.contains('open');
+  const id = previewing ? draftUIThemeId : currentUIThemeId;
+  const colors = previewing ? draftUIColors : customUIColors;
+  const theme = colors || UI_THEMES[id];
+  const name = colors ? 'Custom UI Theme' : UI_THEMES[id].name;
   openExportThemeModal('ui', name, theme);
 }
 
@@ -3258,6 +3305,7 @@ function importSyntaxTheme(e) {
       customColors = null;
       themeSelect.value = id;
       applyTheme(id);
+      buildSyntaxThemePicker();
       render();
       saveToStorage();
 

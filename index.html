@@ -202,8 +202,11 @@
   <!-- UI Theme Modal -->
   <div class="modal-overlay" id="ui-theme-modal">
     <div class="modal" style="width:550px;">
-      <h2>UI Theme</h2>
-      <div class="ui-theme-grid" id="ui-theme-grid"></div>
+      <h2>UI Appearance</h2>
+      <p class="ui-theme-guidance">Choose a preset or adjust colours. Changes are previewed until you apply them.</p>
+      <div class="ui-theme-body">
+        <div class="ui-theme-grid" id="ui-theme-grid"></div>
+      <p class="ui-theme-selection-hint" id="ui-theme-selection-hint" role="status" aria-live="polite"></p>
       <hr style="border:none;border-top:1px solid var(--toolbar-border);margin:16px 0;" />
       <h3 style="font-size:0.8rem;color:var(--line-num);margin-bottom:12px;">Custom UI Colors</h3>
       <div class="settings-grid">
@@ -231,6 +234,7 @@
           <label>Border</label>
           <input type="color" id="ui-color-border" value="#45475a" />
         </div>
+      </div>
       </div>
       <div class="modal-actions">
         <button id="btn-ui-theme-export" title="Export current UI theme">📤 Export Theme</button>
