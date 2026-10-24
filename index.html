@@ -141,21 +141,24 @@
 
   <!-- New Category Modal -->
   <div class="modal-overlay" id="new-cat-modal">
-    <div class="modal">
+    <div class="modal category-modal">
       <h2>Add Highlight Category</h2>
+      <p class="category-modal-help">Choose how this category looks across your syntax themes.</p>
       <div class="field">
         <label for="new-cat-name">Category Name</label>
         <input type="text" id="new-cat-name" placeholder="e.g. macro, label, pragma..." />
       </div>
       <div class="field">
-        <label>Style</label>
+        <label>Text style</label>
         <div class="style-options">
-          <label><input type="checkbox" id="new-cat-bold" /> Bold</label>
-          <label><input type="checkbox" id="new-cat-italic" /> Italic</label>
+          <label><input type="checkbox" id="new-cat-bold" /> <strong>Bold</strong></label>
+          <label><input type="checkbox" id="new-cat-italic" /> <em>Italic</em></label>
         </div>
+        <div class="category-style-preview" aria-live="polite"><span>Preview</span> <span id="new-cat-style-preview">Sample token</span></div>
       </div>
       <div class="field">
-        <label>Generated Colors (per theme)</label>
+        <label>Colour by syntax theme</label>
+        <p class="category-colors-help">Pick a colour for each theme. The current one is shown first.</p>
         <div class="preview-colors" id="new-cat-preview"></div>
       </div>
       <div class="modal-actions">

@@ -45,6 +45,13 @@ Chromatura is a web-based tool. To run it locally:
 - Use the **Theme** menu to search and pick syntax themes, change the UI appearance, or edit syntax colours. In **UI appearance**, choosing a preset or colour previews the result; **Apply** saves it, while **Cancel**, Escape, or clicking outside discards the preview.
 - Less-used import, randomise, and management options are under **Theme tools**.
 
+### Highlight categories
+
+- The sidebar shows eight everyday categories first: Keyword, Function, String, Number, Type, Variable, Comment, and Constant. **More categories** expands Operator, Decorator, Tag, and Attribute. Older projects keep all category IDs, highlights, and shortcuts.
+- Select **Add Category** to set a name, **Bold** and/or **Italic** immediately, and choose a different colour for **each syntax theme**, including imported themes. The dialog previews the text style and each colour before you save.
+- Your custom categories appear under **Your categories**. Use their edit control to revise the name, text style, or per-theme colours; **Cancel** discards unfinished changes.
+- Category styling belongs to **syntax themes** (highlight colours), not UI appearance themes (toolbar/editor surface colours). All custom category colours are included in project export/import and local storage.
+
 ### Settings & Help
 
 - The ⚙ **Settings** button allows font, indentation, and display customisation.

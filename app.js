@@ -305,6 +305,11 @@ let categories = [
   { id: 'attribute', label: 'Attribute', shortcut: '=', bold: false, italic: false },
 ];
 
+// Keep the full legacy category set for existing highlights, shortcuts and themes.
+// Show commonly used categories first; specialised ones stay a click away.
+const PRIMARY_CATEGORY_IDS = ['keyword', 'function', 'string', 'number', 'type', 'variable', 'comment', 'constant'];
+let showExtraCategories = false;
+
 // ─────────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────────
@@ -693,6 +698,8 @@ function init() {
   });
   document.getElementById('btn-new-cat-add').addEventListener('click', addNewCategory);
   document.getElementById('new-cat-name').addEventListener('input', updateNewCatPreview);
+  document.getElementById('new-cat-bold').addEventListener('change', updateNewCatPreview);
+  document.getElementById('new-cat-italic').addEventListener('change', updateNewCatPreview);
   document.getElementById('btn-settings-cancel').addEventListener('click', () => document.getElementById('settings-modal').classList.remove('open'));
   document.getElementById('btn-settings-save').addEventListener('click', saveSettings);
   document.getElementById('btn-load-font').addEventListener('click', () => document.getElementById('font-file-input').click());
@@ -1073,7 +1080,8 @@ function buildSidebar() {
   sidebar.innerHTML = '<div class="sidebar-header"><h3>Highlight As</h3><button class="sidebar-close-btn" id="btn-sidebar-close" title="Close">✕</button></div>';
   document.getElementById('btn-sidebar-close').addEventListener('click', closeSidebarSheet);
 
-  categories.forEach((cat, idx) => {
+  const appendCategoryButton = (cat) => {
+    const idx = categories.indexOf(cat);
     const isCustom = !BUILTIN_IDS.has(cat.id);
 
     const wrapper = document.createElement('div');
@@ -1091,7 +1099,7 @@ function buildSidebar() {
     }
     const styleStr = `background:${color};${cat.bold ? 'border-width:2px;' : ''}`;
     const shortcutLabel = cat.shortcut ? `Alt+${cat.shortcut}` : '';
-    btn.innerHTML = `<span class="swatch" style="${styleStr}"></span>${escapeHtml(cat.label)}<span class="shortcut">${shortcutLabel}</span>`;
+    btn.innerHTML = `<span class="swatch" style="${styleStr}"></span><span class="category-button-label" style="${cat.bold ? 'font-weight:700;' : ''}${cat.italic ? 'font-style:italic;' : ''}">${escapeHtml(cat.label)}</span><span class="shortcut">${shortcutLabel}</span>`;
     btn.addEventListener('click', () => applyHighlight(cat.id));
     wrapper.appendChild(btn);
 
@@ -1117,7 +1125,45 @@ function buildSidebar() {
     }
 
     sidebar.appendChild(wrapper);
-  });
+  };
+
+  for (const id of PRIMARY_CATEGORY_IDS) {
+    const cat = categories.find(entry => entry.id === id);
+    if (cat) appendCategoryButton(cat);
+  }
+
+  const extraCats = categories.filter(cat => BUILTIN_IDS.has(cat.id) && !PRIMARY_CATEGORY_IDS.includes(cat.id));
+  if (extraCats.length) {
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'sidebar-category-toggle';
+    toggle.setAttribute('aria-controls', 'sidebar-extra-categories');
+    toggle.setAttribute('aria-expanded', String(showExtraCategories));
+    toggle.innerHTML = `<span class="category-chevron" aria-hidden="true">${showExtraCategories ? '▾' : '▸'}</span> More categories <span class="category-count">${extraCats.length}</span>`;
+    const group = document.createElement('div');
+    group.id = 'sidebar-extra-categories';
+    group.hidden = !showExtraCategories;
+    toggle.addEventListener('click', () => {
+      showExtraCategories = !showExtraCategories;
+      group.hidden = !showExtraCategories;
+      toggle.setAttribute('aria-expanded', String(showExtraCategories));
+      toggle.querySelector('.category-chevron').textContent = showExtraCategories ? '▾' : '▸';
+    });
+    sidebar.append(toggle, group);
+    for (const cat of extraCats) {
+      appendCategoryButton(cat);
+      group.appendChild(sidebar.lastElementChild);
+    }
+  }
+
+  const ownCategories = categories.filter(cat => !BUILTIN_IDS.has(cat.id));
+  if (ownCategories.length) {
+    const heading = document.createElement('div');
+    heading.className = 'sidebar-group-label';
+    heading.textContent = 'Your categories';
+    sidebar.appendChild(heading);
+    ownCategories.forEach(appendCategoryButton);
+  }
 
   // Divider
   const div = document.createElement('div');
@@ -1135,17 +1181,7 @@ function buildSidebar() {
   const addBtn = document.createElement('button');
   addBtn.className = 'highlight-btn add-cat-btn';
   addBtn.innerHTML = `<span class="swatch" style="background:transparent;border:1px dashed var(--line-num);display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--line-num);">+</span>Add Category`;
-  addBtn.addEventListener('click', () => {
-    const modal = document.getElementById('new-cat-modal');
-    modal._editCatId = null;
-    modal.querySelector('h2').textContent = 'Add Highlight Category';
-    document.getElementById('btn-new-cat-add').textContent = 'Add Category';
-    document.getElementById('new-cat-name').value = '';
-    document.getElementById('new-cat-bold').checked = false;
-    document.getElementById('new-cat-italic').checked = false;
-    document.getElementById('new-cat-preview').innerHTML = '';
-    modal.classList.add('open');
-  });
+  addBtn.addEventListener('click', openNewCategoryModal);
   sidebar.appendChild(addBtn);
 }
 
@@ -1153,27 +1189,88 @@ function buildSidebar() {
 // NEW CATEGORY
 // ─────────────────────────────────────────────
 function getNextShortcut() { const used = new Set(categories.map(c => c.shortcut)); for (const s of [...DEFAULT_SHORTCUTS, ...EXTRA_SHORTCUTS]) if (!used.has(s)) return s; return null; }
-function openNewCategoryModal() { document.getElementById('new-cat-name').value = ''; document.getElementById('new-cat-bold').checked = false; document.getElementById('new-cat-italic').checked = false; updateNewCatPreview(); document.getElementById('new-cat-modal').classList.add('open'); document.getElementById('new-cat-name').focus(); }
+// Draft colours are only committed when Add / Save is pressed. Editing the name
+// or bold/italic switches never resets carefully chosen per-theme colours.
+function startCategoryColorDraft(editId = null) {
+  const modal = document.getElementById('new-cat-modal');
+  const colors = {};
+  for (const [themeId, theme] of Object.entries(THEMES)) {
+    const existing = editId && (themeId === currentThemeId && customColors?.[editId] || theme.colors[editId]);
+    colors[themeId] = existing || generateColorForTheme(theme.colors, categories.length);
+  }
+  modal._categoryColors = colors;
+  renderCategoryColorRows();
+}
+
+function openNewCategoryModal() {
+  const modal = document.getElementById('new-cat-modal');
+  modal._editCatId = null;
+  modal.querySelector('h2').textContent = 'Add Highlight Category';
+  document.getElementById('btn-new-cat-add').textContent = 'Add Category';
+  document.getElementById('new-cat-name').value = '';
+  document.getElementById('new-cat-bold').checked = false;
+  document.getElementById('new-cat-italic').checked = false;
+  startCategoryColorDraft();
+  updateNewCatPreview();
+  modal.classList.add('open');
+  document.getElementById('new-cat-name').focus();
+}
+
+function renderCategoryColorRows() {
+  const modal = document.getElementById('new-cat-modal');
+  const container = document.getElementById('new-cat-preview');
+  container.replaceChildren();
+  const themeEntries = Object.entries(THEMES).sort(([a], [b]) => Number(b === currentThemeId) - Number(a === currentThemeId));
+  for (const [themeId, theme] of themeEntries) {
+    const row = document.createElement('div');
+    row.className = 'preview-color' + (themeId === currentThemeId ? ' current-theme' : '');
+    const label = document.createElement('label');
+    const fieldId = `category-color-${themeId}`;
+    label.htmlFor = fieldId;
+    label.textContent = theme.name;
+    if (themeId === currentThemeId) {
+      const current = document.createElement('span');
+      current.className = 'category-current-hint';
+      current.textContent = 'Current';
+      label.appendChild(current);
+    }
+    const sample = document.createElement('span');
+    sample.className = 'category-colour-sample';
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.id = fieldId;
+    picker.value = modal._categoryColors[themeId];
+    picker.setAttribute('aria-label', `Colour in ${theme.name}`);
+    const hex = document.createElement('span');
+    hex.className = 'category-hex';
+    const updateRow = () => {
+      sample.style.color = picker.value;
+      hex.textContent = picker.value.toUpperCase();
+    };
+    picker.addEventListener('input', () => {
+      modal._categoryColors[themeId] = picker.value;
+      updateRow();
+    });
+    row.append(label, sample, picker, hex);
+    container.appendChild(row);
+    updateRow();
+  }
+}
 
 function updateNewCatPreview() {
-  const preview = document.getElementById('new-cat-preview');
-  const name = document.getElementById('new-cat-name').value.trim();
-  preview.innerHTML = '';
-
-  if (!name) return;
-
-  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-
-  for (const [themeId, theme] of Object.entries(THEMES)) {
-    const modal = document.getElementById('new-cat-modal');
-    const editId = modal._editCatId;
-    const color = (editId && theme.colors[editId]) ? theme.colors[editId] : generateColorForTheme(theme.colors, categories.length);
-
-    const chip = document.createElement('div');
-    chip.className = 'preview-color';
-    chip.innerHTML = `<span class="dot" style="background:${color};width:10px;height:10px;border-radius:50%;flex-shrink:0;"></span><span>${escapeHtml(theme.name)}</span>`;
-    preview.appendChild(chip);
-  }
+  const modal = document.getElementById('new-cat-modal');
+  const name = document.getElementById('new-cat-name').value.trim() || 'Sample token';
+  const bold = document.getElementById('new-cat-bold').checked;
+  const italic = document.getElementById('new-cat-italic').checked;
+  const sample = document.getElementById('new-cat-style-preview');
+  sample.textContent = name;
+  sample.style.fontWeight = bold ? '700' : '400';
+  sample.style.fontStyle = italic ? 'italic' : 'normal';
+  modal.querySelectorAll('.category-colour-sample').forEach(el => {
+    el.textContent = name;
+    el.style.fontWeight = bold ? '700' : '400';
+    el.style.fontStyle = italic ? 'italic' : 'normal';
+  });
 }
 
 function addNewCategory() {
@@ -1181,66 +1278,41 @@ function addNewCategory() {
   const nameInput = document.getElementById('new-cat-name');
   const boldCheck = document.getElementById('new-cat-bold');
   const italicCheck = document.getElementById('new-cat-italic');
-
   const name = nameInput.value.trim();
-  if (!name) { showToast('Enter a category name'); return; }
+  if (!name) { showToast('Enter a category name'); nameInput.focus(); return; }
 
   const editId = modal._editCatId;
-
-  if (editId) {
-    // ── Editing existing category ──
-    const cat = categories.find(c => c.id === editId);
-    if (!cat) return;
-
-    cat.label = name;
-    cat.bold = boldCheck.checked;
-    cat.italic = italicCheck.checked;
-
-    modal._editCatId = null;
-    modal.querySelector('h2').textContent = 'Add Highlight Category';
-    document.getElementById('btn-new-cat-add').textContent = 'Add Category';
-    modal.classList.remove('open');
-
-    updateDynamicStyles();
-    buildSidebar();
-    render(); updateHelpContent();
-    saveToStorage();
-    showToast(`Updated category "${name}"`);
-  } else {
-    // ── Creating new category ──
-    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-    if (categories.some(c => c.id === id)) {
-      showToast('Category already exists');
-      return;
-    }
-
-    if (!id) { showToast('Use letters or numbers in the category name'); return; }
-    const newCat = {
-      id,
-      label: name,
-      bold: boldCheck.checked,
-      italic: italicCheck.checked,
-      shortcut: getNextShortcut(),
-    };
-
-    // Generate colors for each theme
-    for (const [themeId, theme] of Object.entries(THEMES)) {
-      theme.colors[id] = generateColorForTheme(theme.colors, categories.length);
-    }
-
-    categories.push(newCat);
-    modal.classList.remove('open');
-
-    updateDynamicStyles();
-    buildSidebar();
-    updateHelpContent();
-    saveToStorage();
-    showToast(`Added category "${name}"`);
+  const id = editId || name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  if (!id) { showToast('Use letters or numbers in the category name'); nameInput.focus(); return; }
+  if (!editId && categories.some(c => c.id === id)) {
+    showToast('Category already exists'); return;
   }
 
-  nameInput.value = '';
-  boldCheck.checked = false;
-  italicCheck.checked = false;
+  const cat = editId ? categories.find(c => c.id === editId) : {
+    id, shortcut: getNextShortcut(), label: name, bold: false, italic: false
+  };
+  if (!cat) return;
+  cat.label = name;
+  cat.bold = boldCheck.checked;
+  cat.italic = italicCheck.checked;
+  if (!editId) categories.push(cat);
+
+  // Colours are theme-specific, including user-imported syntax themes.
+  // Keep the active custom palette in sync if it is currently in use.
+  for (const [themeId, color] of Object.entries(modal._categoryColors || {})) {
+    if (!THEMES[themeId] || !/^#[0-9a-fA-F]{6}$/.test(color)) continue;
+    THEMES[themeId].colors[id] = color;
+    if (themeId === currentThemeId && customColors) customColors[id] = color;
+  }
+
+  modal._editCatId = null;
+  modal._categoryColors = null;
+  modal.classList.remove('open');
+  updateDynamicStyles();
+  applyTheme(currentThemeId);
+  render(); updateHelpContent();
+  saveToStorage();
+  showToast(`${editId ? 'Updated' : 'Added'} category "${name}"`);
 }
 
 // ─────────────────────────────────────────────
@@ -4344,6 +4416,7 @@ function deleteCategory(catId) {
   for (const [themeId, theme] of Object.entries(THEMES)) {
     delete theme.colors[catId];
   }
+  if (customColors) delete customColors[catId];
 
   buildSidebar();
   render(); updateHelpContent();
@@ -4373,6 +4446,7 @@ function openEditCategoryModal(catId) {
   // Store edit context
   modal._editCatId = catId;
 
+  startCategoryColorDraft(catId);
   updateNewCatPreview();
   modal.classList.add('open');
 }
